@@ -27,9 +27,8 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[str, WebSocket] = {}
 
-    async def connect(self, user_id: str, websocket: WebSocket):
-        """Accept and register a connection."""
-        await websocket.accept()
+    async def register(self, user_id: str, websocket: WebSocket):
+        """Register an already-accepted connection."""
         self.active_connections[user_id] = websocket
 
         # Store connection in Redis
@@ -85,9 +84,21 @@ async def websocket_endpoint(
     token: str = Query(...),
 ):
     """WebSocket endpoint for real-time chat."""
+    # 必须先 accept 连接，然后才能发送消息或关闭
+    await websocket.accept()
+    
     # Verify token
     user_id = await verify_token(token)
     if not user_id:
+        await websocket.send_json({
+            "type": "error",
+            "payload": {
+                "code": "AUTH_FAILED",
+                "message": "Invalid or expired token",
+                "recoverable": False,
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
         await websocket.close(code=4001, reason="Invalid or expired token")
         return
 
@@ -155,3 +166,4 @@ async def websocket_endpoint(
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(user_id)
         await websocket.close(code=1011, reason="Internal error")
+ reason="Internal error")
