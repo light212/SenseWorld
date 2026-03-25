@@ -30,11 +30,11 @@ async def list_conversations(
     db: AsyncSession = Depends(get_db),
 ) -> ConversationListResponse:
     """List user's conversations."""
-    user_uuid = UUID(user_id)
+    # 直接用字符串比较，避免 UUID() 转换导致格式不一致
 
     # Get total count
     count_query = select(func.count(Conversation.id)).where(
-        Conversation.user_id == user_uuid,
+        Conversation.user_id == user_id,
         Conversation.is_deleted == False,  # noqa: E712
     )
     total = (await db.execute(count_query)).scalar() or 0
@@ -44,7 +44,7 @@ async def list_conversations(
     query = (
         select(Conversation)
         .where(
-            Conversation.user_id == user_uuid,
+            Conversation.user_id == user_id,
             Conversation.is_deleted == False,  # noqa: E712
         )
         .order_by(func.coalesce(Conversation.last_message_at, datetime.min).desc())
@@ -70,7 +70,7 @@ async def create_conversation(
 ) -> ConversationResponse:
     """Create a new conversation."""
     conversation = Conversation(
-        user_id=UUID(user_id),
+        user_id=user_id,
         title=data.title,
     )
     db.add(conversation)
@@ -90,7 +90,7 @@ async def get_conversation(
     result = await db.execute(
         select(Conversation).where(
             Conversation.id == conversation_id,
-            Conversation.user_id == UUID(user_id),
+            Conversation.user_id == user_id,
             Conversation.is_deleted == False,  # noqa: E712
         )
     )
@@ -116,7 +116,7 @@ async def update_conversation(
     result = await db.execute(
         select(Conversation).where(
             Conversation.id == conversation_id,
-            Conversation.user_id == UUID(user_id),
+            Conversation.user_id == user_id,
             Conversation.is_deleted == False,  # noqa: E712
         )
     )
@@ -147,7 +147,7 @@ async def delete_conversation(
     result = await db.execute(
         select(Conversation).where(
             Conversation.id == conversation_id,
-            Conversation.user_id == UUID(user_id),
+            Conversation.user_id == user_id,
             Conversation.is_deleted == False,  # noqa: E712
         )
     )

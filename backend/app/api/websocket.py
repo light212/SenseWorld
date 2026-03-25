@@ -102,7 +102,7 @@ async def websocket_endpoint(
         await websocket.close(code=4001, reason="Invalid or expired token")
         return
 
-    await manager.connect(user_id, websocket)
+    await manager.register(user_id, websocket)
 
     # Send connected message
     await websocket.send_json({
@@ -166,4 +166,3 @@ async def websocket_endpoint(
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(user_id)
         await websocket.close(code=1011, reason="Internal error")
- reason="Internal error")
