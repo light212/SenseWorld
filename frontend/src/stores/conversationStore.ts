@@ -31,6 +31,8 @@ interface ConversationState {
   // Actions
   setCurrentConversation: (id: string | null) => void;
   setConversations: (conversations: Conversation[]) => void;
+  addConversation: (conversation: Conversation) => void;
+  removeConversation: (id: string) => void;
   setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   updateStreamingContent: (content: string) => void;
@@ -38,6 +40,7 @@ interface ConversationState {
   setIsStreaming: (isStreaming: boolean) => void;
   setIsSendingMessage: (isSending: boolean) => void;
   setHasHydrated: (state: boolean) => void;
+  setIsLoadingConversations: (loading: boolean) => void;
 }
 
 export const useConversationStore = create<ConversationState>()(
@@ -59,6 +62,18 @@ export const useConversationStore = create<ConversationState>()(
       
       setConversations: (conversations) => set({ conversations }),
       
+      addConversation: (conversation) =>
+        set((state) => ({
+          conversations: [conversation, ...state.conversations],
+        })),
+      
+      removeConversation: (id) =>
+        set((state) => ({
+          conversations: state.conversations.filter((c) => c.id !== id),
+          currentConversationId:
+            state.currentConversationId === id ? null : state.currentConversationId,
+        })),
+      
       setMessages: (messages) => set({ messages }),
       
       addMessage: (message) =>
@@ -74,6 +89,8 @@ export const useConversationStore = create<ConversationState>()(
       setIsSendingMessage: (isSending) => set({ isSendingMessage: isSending }),
       
       setHasHydrated: (state) => set({ _hasHydrated: state }),
+      
+      setIsLoadingConversations: (loading) => set({ isLoadingConversations: loading }),
     }),
     {
       name: "conversation-storage",
