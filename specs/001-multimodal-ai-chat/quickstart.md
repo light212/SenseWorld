@@ -2,7 +2,7 @@
 
 **Feature**: 001-multimodal-ai-chat  
 **Created**: 2026-03-25  
-**Status**: Draft
+**Status**: Ready
 
 本指南用于快速启动本地开发环境并验证关键用户故事流程。
 

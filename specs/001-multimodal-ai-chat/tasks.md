@@ -10,11 +10,11 @@
 
 **Purpose**: 项目初始化与基础工程结构
 
-- [ ] T001 创建后端工程结构并初始化 FastAPI 项目于 backend/
-- [ ] T002 创建前端工程结构并初始化 Next.js 项目于 frontend/
-- [ ] T003 [P] 添加后端配置与环境变量模板在 backend/app/config.py 和 backend/.env.example
-- [ ] T004 [P] 添加前端环境变量模板在 frontend/.env.example
-- [ ] T005 [P] 创建基础 README 说明在 backend/README.md 与 frontend/README.md
+- [x] T001 创建后端工程结构并初始化 FastAPI 项目于 backend/
+- [x] T002 创建前端工程结构并初始化 Next.js 项目于 frontend/
+- [x] T003 [P] 添加后端配置与环境变量模板在 backend/app/config.py 和 backend/.env.example
+- [x] T004 [P] 添加前端环境变量模板在 frontend/.env.example
+- [x] T005 [P] 创建基础 README 说明在 backend/README.md 与 frontend/README.md
 
 ---
 
@@ -22,17 +22,17 @@
 
 **Purpose**: 所有用户故事的基础设施（必须先完成）
 
-- [ ] T006 设置数据库连接与会话管理在 backend/app/core/database.py
-- [ ] T007 初始化 Alembic 迁移配置在 backend/alembic/ 与 backend/alembic.ini
-- [ ] T008 [P] 定义 User/Conversation/Message ORM 模型在 backend/app/models/user.py、backend/app/models/conversation.py、backend/app/models/message.py
-- [ ] T009 创建基础 Pydantic schemas 在 backend/app/schemas/auth.py、backend/app/schemas/conversation.py、backend/app/schemas/message.py
-- [ ] T010 实现 JWT 认证与密码哈希在 backend/app/core/security.py
-- [ ] T011 配置全局错误处理与日志中间件在 backend/app/main.py
-- [ ] T012 建立 API 路由骨架在 backend/app/api/v1/__init__.py 与 backend/app/api/v1/auth.py、conversation.py、message.py
-- [ ] T013 实现 WebSocket 基础连接处理在 backend/app/api/websocket.py
-- [ ] T014 配置 Redis 客户端与会话缓存支持在 backend/app/core/database.py
-- [ ] T015 创建前端 API 客户端基础封装在 frontend/src/services/api.ts
-- [ ] T016 创建前端 WebSocket 封装 Hook 在 frontend/src/hooks/useWebSocket.ts
+- [x] T006 设置数据库连接与会话管理在 backend/app/core/database.py
+- [x] T007 初始化 Alembic 迁移配置在 backend/alembic/ 与 backend/alembic.ini
+- [x] T008 [P] 定义 User/Conversation/Message ORM 模型在 backend/app/models/user.py、backend/app/models/conversation.py、backend/app/models/message.py
+- [x] T009 创建基础 Pydantic schemas 在 backend/app/schemas/auth.py、backend/app/schemas/conversation.py、backend/app/schemas/message.py
+- [x] T010 实现 JWT 认证与密码哈希在 backend/app/core/security.py
+- [x] T011 配置全局错误处理与日志中间件在 backend/app/main.py
+- [x] T012 建立 API 路由骨架在 backend/app/api/v1/__init__.py 与 backend/app/api/v1/auth.py、conversation.py、message.py
+- [x] T013 实现 WebSocket 基础连接处理在 backend/app/api/websocket.py
+- [x] T014 配置 Redis 客户端与会话缓存支持在 backend/app/core/database.py
+- [x] T015 创建前端 API 客户端基础封装在 frontend/src/services/api.ts
+- [x] T016 创建前端 WebSocket 封装 Hook 在 frontend/src/hooks/useWebSocket.ts
 
 **Checkpoint**: Foundational 完成后，所有用户故事可并行推进
 
@@ -46,14 +46,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T017 [P] 实现后端 ASR 服务封装在 backend/app/services/asr_service.py
-- [ ] T018 [P] 实现后端 TTS 服务封装在 backend/app/services/tts_service.py
-- [ ] T019 [P] 实现后端 LLM 服务封装在 backend/app/services/llm_service.py
-- [ ] T020 实现语音转文字接口在 backend/app/api/v1/speech.py
-- [ ] T021 实现语音输入消息处理逻辑在 backend/app/services/conversation_service.py
-- [ ] T022 [P] 实现前端录音与波形反馈组件在 frontend/src/components/chat/VoiceInput.tsx
-- [ ] T023 [P] 实现前端音频播放组件在 frontend/src/components/chat/AudioPlayer.tsx
-- [ ] T024 集成语音输入流程与发送逻辑在 frontend/src/components/chat/ChatWindow.tsx
+- [x] T017 [P] 实现后端 ASR 服务封装在 backend/app/services/asr_service.py
+- [x] T018 [P] 实现后端 TTS 服务封装在 backend/app/services/tts_service.py
+- [x] T019 [P] 实现后端 LLM 服务封装在 backend/app/services/llm_service.py
+- [x] T020 实现语音转文字接口在 backend/app/api/v1/speech.py
+- [x] T021 实现语音输入消息处理逻辑在 backend/app/services/conversation_service.py
+- [x] T022 [P] 实现前端录音与波形反馈组件在 frontend/src/components/chat/VoiceInput.tsx
+- [x] T023 [P] 实现前端音频播放组件在 frontend/src/components/chat/AudioPlayer.tsx
+- [x] T024 集成语音输入流程与发送逻辑在 frontend/src/components/chat/ChatWindow.tsx
 
 ---
 
@@ -65,12 +65,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T025 实现 WebSocket 消息协议与事件类型在 specs/001-multimodal-ai-chat/contracts/websocket.md
-- [ ] T026 实现后端流式 LLM 输出推送在 backend/app/api/websocket.py
-- [ ] T027 实现后端 TTS 流式合成与分块发送在 backend/app/services/tts_service.py
-- [ ] T028 [P] 实现前端流式文本渲染在 frontend/src/components/chat/MessageList.tsx
-- [ ] T029 [P] 实现前端流式音频播放逻辑在 frontend/src/hooks/useAudioPlayer.ts
-- [ ] T030 集成流式 WebSocket 消息处理在 frontend/src/hooks/useWebSocket.ts
+- [x] T025 实现 WebSocket 消息协议与事件类型在 specs/001-multimodal-ai-chat/contracts/websocket.md
+- [x] T026 实现后端流式 LLM 输出推送在 backend/app/api/websocket.py
+- [x] T027 实现后端 TTS 流式合成与分块发送在 backend/app/services/tts_service.py
+- [x] T028 [P] 实现前端流式文本渲染在 frontend/src/components/chat/MessageList.tsx
+- [x] T029 [P] 实现前端流式音频播放逻辑在 frontend/src/hooks/useAudioPlayer.ts
+- [x] T030 集成流式 WebSocket 消息处理在 frontend/src/hooks/useWebSocket.ts
 
 ---
 
@@ -82,11 +82,11 @@
 
 ### Implementation for User Story 6
 
-- [ ] T031 实现对话上下文缓存逻辑在 backend/app/services/conversation_service.py
-- [ ] T032 [P] 持久化消息记录在 backend/app/services/conversation_service.py
-- [ ] T033 [P] 实现上下文隔离与会话切换支持在 backend/app/services/conversation_service.py
-- [ ] T034 [P] 前端会话状态管理在 frontend/src/stores/conversationStore.ts
-- [ ] T035 集成上下文发送策略在 backend/app/services/llm_service.py
+- [x] T031 实现对话上下文缓存逻辑在 backend/app/services/conversation_service.py
+- [x] T032 [P] 持久化消息记录在 backend/app/services/conversation_service.py
+- [x] T033 [P] 实现上下文隔离与会话切换支持在 backend/app/services/conversation_service.py
+- [x] T034 [P] 前端会话状态管理在 frontend/src/stores/conversationStore.ts
+- [x] T035 集成上下文发送策略在 backend/app/services/llm_service.py
 
 ---
 
@@ -98,10 +98,10 @@
 
 ### Implementation for User Story 3
 
-- [ ] T036 [P] 实现文字输入组件在 frontend/src/components/chat/TextInput.tsx
-- [ ] T037 实现文字消息发送接口在 backend/app/api/v1/message.py
-- [ ] T038 集成文字输入发送流程在 frontend/src/components/chat/ChatWindow.tsx
-- [ ] T039 实现回复呈现方式选择逻辑在 frontend/src/components/chat/ChatWindow.tsx
+- [x] T036 [P] 实现文字输入组件在 frontend/src/components/chat/TextInput.tsx
+- [x] T037 实现文字消息发送接口在 backend/app/api/v1/message.py
+- [x] T038 集成文字输入发送流程在 frontend/src/components/chat/ChatWindow.tsx
+- [x] T039 实现回复呈现方式选择逻辑在 frontend/src/components/chat/ChatWindow.tsx
 
 ---
 
@@ -113,10 +113,10 @@
 
 ### Implementation for User Story 5
 
-- [ ] T040 实现麦克风权限检测逻辑在 frontend/src/hooks/useVoiceRecorder.ts
-- [ ] T041 实现首次使用引导 UI 在 frontend/src/components/chat/VoiceInput.tsx
-- [ ] T042 添加引导与教程状态存储在 frontend/src/stores/conversationStore.ts
-- [ ] T043 实现授权被拒绝的备选提示在 frontend/src/components/chat/VoiceInput.tsx
+- [x] T040 实现麦克风权限检测逻辑在 frontend/src/hooks/useVoiceRecorder.ts
+- [x] T041 实现首次使用引导 UI 在 frontend/src/components/chat/VoiceInput.tsx
+- [x] T042 添加引导与教程状态存储在 frontend/src/stores/conversationStore.ts
+- [x] T043 实现授权被拒绝的备选提示在 frontend/src/components/chat/VoiceInput.tsx
 
 ---
 
@@ -128,10 +128,10 @@
 
 ### Implementation for User Story 7
 
-- [ ] T044 实现转写结果可编辑 UI 在 frontend/src/components/chat/VoiceInput.tsx
-- [ ] T045 实现重新录制与取消录制逻辑在 frontend/src/hooks/useVoiceRecorder.ts
-- [ ] T046 在后端增加错误响应统一格式在 backend/app/schemas/message.py
-- [ ] T047 前端显示错误提示与重试入口在 frontend/src/components/chat/ChatWindow.tsx
+- [x] T044 实现转写结果可编辑 UI 在 frontend/src/components/chat/VoiceInput.tsx
+- [x] T045 实现重新录制与取消录制逻辑在 frontend/src/hooks/useVoiceRecorder.ts
+- [x] T046 在后端增加错误响应统一格式在 backend/app/schemas/message.py
+- [x] T047 前端显示错误提示与重试入口在 frontend/src/components/chat/ChatWindow.tsx
 
 ---
 
@@ -143,11 +143,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T048 实现对话列表接口在 backend/app/api/v1/conversation.py
-- [ ] T049 实现对话详情与消息列表接口在 backend/app/api/v1/conversation.py 和 backend/app/api/v1/message.py
-- [ ] T050 实现删除对话接口在 backend/app/api/v1/conversation.py
-- [ ] T051 [P] 实现对话列表 UI 在 frontend/src/components/chat/ConversationList.tsx
-- [ ] T052 集成对话切换与加载在 frontend/src/components/chat/ChatWindow.tsx
+- [x] T048 实现对话列表接口在 backend/app/api/v1/conversation.py
+- [x] T049 实现对话详情与消息列表接口在 backend/app/api/v1/conversation.py 和 backend/app/api/v1/message.py
+- [x] T050 实现删除对话接口在 backend/app/api/v1/conversation.py
+- [x] T051 [P] 实现对话列表 UI 在 frontend/src/components/chat/ConversationList.tsx
+- [x] T052 集成对话切换与加载在 frontend/src/components/chat/ChatWindow.tsx
 
 ---
 
@@ -155,10 +155,10 @@
 
 **Purpose**: 跨故事改进与收尾工作
 
-- [ ] T053 [P] 添加可访问性支持（键盘导航/ARIA）在 frontend/src/components/chat/
-- [ ] T054 [P] 增加性能与时延指标埋点在 backend/app/services/ 和 frontend/src/hooks/
-- [ ] T055 [P] 更新 quickstart 文档在 specs/001-multimodal-ai-chat/quickstart.md
-- [ ] T056 安全与隐私合规检查清单在 specs/001-multimodal-ai-chat/checklists/security.md
+- [x] T053 [P] 添加可访问性支持（键盘导航/ARIA）在 frontend/src/components/chat/
+- [x] T054 [P] 增加性能与时延指标埋点在 backend/app/services/ 和 frontend/src/hooks/
+- [x] T055 [P] 更新 quickstart 文档在 specs/001-multimodal-ai-chat/quickstart.md
+- [x] T056 安全与隐私合规检查清单在 specs/001-multimodal-ai-chat/checklists/security.md
 
 ---
 
