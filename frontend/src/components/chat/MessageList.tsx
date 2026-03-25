@@ -109,7 +109,7 @@ function MessageItem({ message }: MessageItemProps) {
       <div
         className={cn(
           "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          isUser ? "bg-primary-500" : "bg-primary-100"
+          isUser ? "bg-primary-600" : "bg-primary-100"
         )}
       >
         {isUser ? (
@@ -159,7 +159,7 @@ function MessageItem({ message }: MessageItemProps) {
           <div
             className={cn(
               "inline-block rounded-lg p-3",
-              isUser ? "bg-primary-500 text-white" : "bg-gray-100"
+              isUser ? "bg-primary-600 text-white" : "bg-gray-100"
             )}
           >
             <p className="whitespace-pre-wrap">{message.content}</p>
@@ -176,7 +176,7 @@ function MessageItem({ message }: MessageItemProps) {
 
         <div
           className={cn(
-            "text-xs text-gray-400 mt-1",
+            "text-xs text-gray-500 mt-1",
             isUser ? "text-right" : "text-left"
           )}
         >

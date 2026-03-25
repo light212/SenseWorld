@@ -89,7 +89,7 @@ export function VoiceMessageBubble({
         className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-2xl transition-colors",
           isUser
-            ? "bg-primary-500 text-white hover:bg-primary-600"
+            ? "bg-primary-600 text-white hover:bg-primary-700"
             : "bg-gray-100 text-gray-900 hover:bg-gray-200",
           isPlaying && "animate-pulse"
         )}
@@ -154,7 +154,7 @@ export function VoiceMessageBubble({
         <p
           className={cn(
             "text-xs mt-1",
-            isUser ? "text-white/80" : "text-gray-500"
+            isUser ? "text-gray-500" : "text-gray-500"
           )}
         >
           {transcription}
