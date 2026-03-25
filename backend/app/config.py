@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     tts_api_key: Optional[str] = None
     tts_base_url: Optional[str] = None
     tts_model: str = "tts-1"
-    tts_voice: str = "alloy"
+    tts_voice: str = "Cherry"  # 阿里云 DashScope 支持的 voice
 
     # Application
     debug: bool = False

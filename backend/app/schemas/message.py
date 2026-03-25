@@ -78,7 +78,7 @@ class SynthesizeRequest(BaseModel):
     """TTS synthesis request."""
 
     text: str = Field(min_length=1, max_length=5000)
-    voice: str = "alloy"
+    voice: str = "Cherry"  # 阿里云 DashScope 支持的 voice
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
