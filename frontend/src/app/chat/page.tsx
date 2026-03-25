@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { useAuthStore, useAuthHydration } from "@/stores/authStore";
@@ -248,8 +249,9 @@ export default function ChatPage() {
           <span className="text-gray-600">{userName}</span>
           <button
             onClick={handleLogout}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
           >
+            <LogOut className="w-4 h-4" />
             退出
           </button>
         </div>

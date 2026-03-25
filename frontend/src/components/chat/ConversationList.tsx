@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { Plus, MessageCircle, Trash2 } from "lucide-react";
 import type { Conversation } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -51,21 +52,9 @@ export function ConversationList({
       {/* New conversation button */}
       <button
         onClick={onCreate}
-        className="flex items-center gap-2 w-full py-2 px-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 mb-4 transition-colors"
+        className="flex items-center gap-2 w-full py-2 px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 mb-4 transition-colors"
       >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
+        <Plus className="w-5 h-5" />
         新对话
       </button>
 
@@ -125,19 +114,7 @@ function ConversationItem({
           isSelected ? "bg-primary-200" : "bg-gray-200"
         )}
       >
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-          />
-        </svg>
+        <MessageCircle className="w-4 h-4" />
       </div>
 
       {/* Content */}
@@ -168,19 +145,7 @@ function ConversationItem({
         )}
         title="删除对话"
       >
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-          />
-        </svg>
+        <Trash2 className="w-4 h-4" />
       </button>
     </div>
   );

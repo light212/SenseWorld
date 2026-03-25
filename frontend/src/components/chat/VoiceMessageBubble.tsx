@@ -5,6 +5,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
+import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface VoiceMessageBubbleProps {
@@ -102,14 +103,9 @@ export function VoiceMessageBubble({
         {/* 播放图标 */}
         <div className="flex-shrink-0 w-5 h-5">
           {isPlaying ? (
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <rect x="6" y="4" width="4" height="16" rx="1" />
-              <rect x="14" y="4" width="4" height="16" rx="1" />
-            </svg>
+            <Pause className="w-5 h-5" />
           ) : (
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
+            <Play className="w-5 h-5" />
           )}
         </div>
 

@@ -4,10 +4,9 @@
  * Main chat window component integrating all chat functionality.
  */
 
-import { useCallback, useState, useEffect } from "react";
-import { VoiceInput } from "./VoiceInput";
-import { TextInput } from "./TextInput";
+import { useCallback, useEffect } from "react";
 import { MessageList } from "./MessageList";
+import { CompactInputBar } from "./CompactInputBar";
 import { useConversationStore } from "@/stores/conversationStore";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
@@ -19,8 +18,6 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ conversationId, className }: ChatWindowProps) {
-  const [inputMode, setInputMode] = useState<"voice" | "text">("voice");
-
   const {
     currentConversationId,
     messages,
@@ -30,7 +27,6 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     addMessage,
     setMessages,
     setIsSendingMessage,
-    setCurrentConversation,
   } = useConversationStore();
 
   const { token } = useAuthStore();
@@ -224,49 +220,12 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         />
       </div>
 
-      {/* Input area - 紧凑布局 */}
-      <div className="flex-shrink-0 border-t bg-white p-3">
-        {/* Input mode toggle - 更紧凑 */}
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <button
-            onClick={() => setInputMode("voice")}
-            className={cn(
-              "px-3 py-1 rounded-full text-sm transition-colors",
-              inputMode === "voice"
-                ? "bg-primary-100 text-primary-700"
-                : "text-gray-500 hover:text-gray-700"
-            )}
-          >
-            🎤 语音
-          </button>
-          <button
-            onClick={() => setInputMode("text")}
-            className={cn(
-              "px-3 py-1 rounded-full text-sm transition-colors",
-              inputMode === "text"
-                ? "bg-primary-100 text-primary-700"
-                : "text-gray-500 hover:text-gray-700"
-            )}
-          >
-            ⌨️ 文字
-          </button>
-        </div>
-
-        {/* Input component */}
-        {inputMode === "voice" ? (
-          <VoiceInput
-            onRecordingComplete={handleVoiceRecordingComplete}
-            disabled={isSendingMessage || isStreaming}
-            className="compact"
-          />
-        ) : (
-          <TextInput
-            onSend={handleTextSend}
-            disabled={isSendingMessage || isStreaming}
-            placeholder="输入消息..."
-          />
-        )}
-      </div>
+      {/* 紧凑输入栏 */}
+      <CompactInputBar
+        onTextSend={handleTextSend}
+        onVoiceRecord={handleVoiceRecordingComplete}
+        disabled={isSendingMessage || isStreaming}
+      />
     </div>
   );
 }
