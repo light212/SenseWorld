@@ -2,7 +2,7 @@
 
 **Feature**: 001-multimodal-ai-chat  
 **Created**: 2026-03-25  
-**Status**: Draft
+**Status**: Complete
 
 ---
 
@@ -43,7 +43,7 @@ wss://api.senseworld.ai/ws/chat?token={jwt_token}
 
 - 指数退避：1s → 2s → 4s → 8s → 最大 30s
 - 重连时携带相同 Token
-- 服务端恢复未完成的会话状态
+- 服务端恢复未完成的会话状态（若可用）
 
 ---
 
@@ -69,7 +69,6 @@ type MessageType =
   | 'session_end'
   | 'conversation_select'
   // 音频上传
-  | 'audio_upload'
   | 'audio_chunk'
   | 'audio_end'
   // ASR
@@ -86,6 +85,14 @@ type MessageType =
   | 'error';
 ```
 
+### 通用约束
+
+- `timestamp` 必须为 ISO 8601
+- `requestId` 建议由客户端生成 UUID，用于追踪一次对话请求
+- `audio_chunk` 数据为 base64 编码，单块建议 <= 256KB
+- 客户端应保证同一 `requestId` 的消息顺序发送
+- 服务端应按 `chunkIndex` 顺序消费音频块
+
 ---
 
 ## 消息流程
@@ -93,40 +100,27 @@ type MessageType =
 ### 完整语音对话流程
 
 ```
-┌──────────┐                                          ┌──────────┐
-│  Client  │                                          │  Server  │
-└────┬─────┘                                          └────┬─────┘
-     │                                                     │
-     │  session_start { conversation_id }                  │
-     │─────────────────────────────────────────────────────►│
-     │                                                     │
-     │  audio_chunk { data: base64 }                       │
-     │─────────────────────────────────────────────────────►│
-     │  (多个音频块)                                         │
-     │                                                     │
-     │  audio_end { duration_ms }                          │
-     │─────────────────────────────────────────────────────►│
-     │                                                     │
-     │                      asr_result { text, confidence }│
-     │◄─────────────────────────────────────────────────────│
-     │                                                     │
-     │                        llm_start { message_id }      │
-     │◄─────────────────────────────────────────────────────│
-     │                                                     │
-     │                      llm_chunk { content }           │
-     │◄─────────────────────────────────────────────────────│
-     │  (多个文本块)                                         │
-     │                                                     │
-     │                      tts_audio { data: base64 }      │
-     │◄─────────────────────────────────────────────────────│
-     │  (多个音频块)                                         │
-     │                                                     │
-     │                           llm_end { total_tokens }   │
-     │◄─────────────────────────────────────────────────────│
-     │                                                     │
-     │                           tts_end { duration_ms }    │
-     │◄─────────────────────────────────────────────────────│
-     │                                                     │
+Client                                             Server
+  |  session_start { conversationId }                |
+  |------------------------------------------------->|
+  |  audio_chunk { data } (多块)                     |
+  |------------------------------------------------->|
+  |  audio_end { durationMs, totalChunks }           |
+  |------------------------------------------------->|
+  |                       asr_partial { text }       |
+  |<-------------------------------------------------|
+  |                       asr_result { text }        |
+  |<-------------------------------------------------|
+  |                          llm_start { messageId } |
+  |<-------------------------------------------------|
+  |                          llm_chunk { content }   |
+  |<-------------------------------------------------|
+  |                       tts_audio { data }         |
+  |<-------------------------------------------------|
+  |                           llm_end { totalTokens }|
+  |<-------------------------------------------------|
+  |                           tts_end { durationMs } |
+  |<-------------------------------------------------|
 ```
 
 ---
@@ -161,8 +155,6 @@ type MessageType =
 
 #### session_start（客户端 → 服务端）
 
-开始一个新的对话会话。
-
 ```json
 {
   "type": "session_start",
@@ -174,9 +166,22 @@ type MessageType =
 }
 ```
 
-#### conversation_select（客户端 → 服务端）
+#### session_end（客户端 → 服务端）
 
-切换到指定对话。
+用于结束一次对话会话（释放服务端上下文）。
+
+```json
+{
+  "type": "session_end",
+  "payload": {
+    "conversationId": "uuid",
+    "reason": "user_end"
+  },
+  "timestamp": "2026-03-25T10:00:10Z"
+}
+```
+
+#### conversation_select（客户端 → 服务端）
 
 ```json
 {
@@ -194,280 +199,186 @@ type MessageType =
 
 #### audio_chunk（客户端 → 服务端）
 
-上传音频数据块（实时流式上传）。
-
 ```json
 {
   "type": "audio_chunk",
   "payload": {
-    "chunkIndex": 0,
-    "data": "base64_encoded_audio_data",
-    "format": "webm"
+    "data": "base64...",
+    "format": "webm",
+    "codec": "opus",
+    "sampleRate": 16000,
+    "chunkIndex": 12
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:00Z",
+  "requestId": "uuid"
 }
 ```
 
 #### audio_end（客户端 → 服务端）
 
-音频上传结束。
-
 ```json
 {
   "type": "audio_end",
   "payload": {
-    "totalChunks": 10,
-    "durationMs": 5000
+    "durationMs": 3200,
+    "totalChunks": 15
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:00Z",
+  "requestId": "uuid"
 }
 ```
 
 ---
 
-### 4. ASR 结果
+### 4. ASR
 
 #### asr_result（服务端 → 客户端）
-
-语音识别最终结果。
 
 ```json
 {
   "type": "asr_result",
   "payload": {
-    "text": "今天天气怎么样？",
+    "text": "你好，今天天气怎么样？",
     "confidence": 0.95,
-    "durationMs": 2000,
-    "language": "zh"
+    "language": "zh-CN"
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:02Z",
+  "requestId": "uuid"
 }
 ```
 
-#### asr_partial（服务端 → 客户端）
-
-实时转写的中间结果（可选功能）。
+#### asr_partial（服务端 → 客户端，可选）
 
 ```json
 {
   "type": "asr_partial",
   "payload": {
-    "text": "今天天气",
+    "text": "你好，今天...",
     "isFinal": false
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:01Z",
+  "requestId": "uuid"
 }
 ```
 
 ---
 
-### 5. LLM 流式输出
+### 5. LLM
 
 #### llm_start（服务端 → 客户端）
-
-LLM 开始生成回复。
 
 ```json
 {
   "type": "llm_start",
   "payload": {
-    "messageId": "uuid"
+    "messageId": "uuid",
+    "model": "default"
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:03Z",
+  "requestId": "uuid"
 }
 ```
 
 #### llm_chunk（服务端 → 客户端）
 
-LLM 输出文本块。
-
 ```json
 {
   "type": "llm_chunk",
   "payload": {
-    "messageId": "uuid",
-    "content": "北京今天天气晴朗，",
-    "chunkIndex": 0
+    "content": "今天天气很好"
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:03Z",
+  "requestId": "uuid"
 }
 ```
 
 #### llm_end（服务端 → 客户端）
 
-LLM 输出结束。
-
 ```json
 {
   "type": "llm_end",
   "payload": {
-    "messageId": "uuid",
-    "totalTokens": 150
+    "totalTokens": 128
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:04Z",
+  "requestId": "uuid"
 }
 ```
 
 ---
 
-### 6. TTS 音频流
+### 6. TTS
 
 #### tts_audio（服务端 → 客户端）
-
-TTS 生成的音频数据块。
 
 ```json
 {
   "type": "tts_audio",
   "payload": {
-    "messageId": "uuid",
-    "chunkIndex": 0,
-    "data": "base64_encoded_mp3_audio",
-    "format": "mp3"
+    "data": "base64...",
+    "format": "mp3",
+    "chunkIndex": 3
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:04Z",
+  "requestId": "uuid"
 }
 ```
 
 #### tts_end（服务端 → 客户端）
 
-TTS 输出结束。
-
 ```json
 {
   "type": "tts_end",
   "payload": {
-    "messageId": "uuid",
     "durationMs": 3500
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:05Z",
+  "requestId": "uuid"
 }
 ```
 
 ---
 
-### 7. 错误处理
+### 7. 错误
 
-#### error（双向）
+#### error（服务端 → 客户端）
 
 ```json
 {
   "type": "error",
   "payload": {
-    "code": "ASR_FAILED",
+    "code": "ASR_UNAVAILABLE",
     "message": "语音识别服务暂时不可用",
-    "recoverable": true,
-    "suggestion": "请使用文字输入"
+    "retryable": true
   },
-  "timestamp": "2026-03-25T10:00:00Z"
+  "timestamp": "2026-03-25T10:00:05Z",
+  "requestId": "uuid"
 }
 ```
 
-**错误代码**：
+### 错误码约定
 
-| Code | 说明 | Recoverable |
-|------|------|-------------|
-| `AUTH_FAILED` | 认证失败 | false |
-| `INVALID_TOKEN` | Token 无效或过期 | false |
-| `ASR_FAILED` | ASR 服务不可用 | true |
-| `LLM_FAILED` | LLM 服务不可用 | true |
-| `TTS_FAILED` | TTS 服务不可用 | true |
-| `RATE_LIMITED` | 请求频率超限 | true |
-| `INVALID_AUDIO` | 音频格式不支持 | true |
-
----
-
-## 流式 TTS 策略
-
-### 方案：按句子触发 TTS
-
-为减少端到端延迟，LLM 输出按句子切分，每个完整句子立即触发 TTS：
-
-```
-LLM 输出: "北京今天天气晴朗，气温约25度。适合户外活动。"
-                    ↓
-切分: ["北京今天天气晴朗，气温约25度。", "适合户外活动。"]
-                    ↓
-TTS: 句子1开始合成 → 句子1音频返回 → 句子2开始合成 → 句子2音频返回
-```
-
-**优点**：
-- 用户更快听到第一句回复
-- 减少 LLM 等待时间
-
-**实现要点**：
-- 使用正则识别句子边界：`[。！？\n]`
-- 句子最小长度：5 字符（避免过短句子）
-- TTS 请求并行发送，音频按序返回
-
----
-
-## 并发控制
-
-### 单用户限制
-
-| 限制项 | 值 |
-|--------|-----|
-| WebSocket 连接数 | 1 |
-| 并发会话数 | 1 |
-| 音频上传速率 | 最大 1MB/s |
-| 消息频率 | 100 条/秒 |
-
-### 全局限制
-
-| 限制项 | 值 |
-|--------|-----|
-| 总 WebSocket 连接数 | 10,000 |
-| 并发 ASR 请求 | 100 |
-| 并发 TTS 请求 | 200 |
+| Code | 含义 | 重试建议 |
+|------|------|----------|
+| AUTH_FAILED | 认证失败 | 否 |
+| RATE_LIMITED | 触发限流 | 是（延迟重试） |
+| ASR_UNAVAILABLE | ASR 不可用 | 是 |
+| LLM_TIMEOUT | LLM 超时 | 是 |
+| TTS_UNAVAILABLE | TTS 不可用 | 是 |
+| INVALID_PAYLOAD | 消息格式错误 | 否 |
+| INTERNAL_ERROR | 服务端异常 | 是 |
 
 ---
 
 ## 客户端实现建议
 
-### 音频播放
+### 流控与背压
 
-使用 Web Audio API 或 MediaSource Extensions 实现：
+- 若收到 `RATE_LIMITED`，客户端应暂停发送音频并在 1-2 秒后重试
+- 前端录音应按 100-250ms 切片发送，避免单包过大
+- 如果 WebSocket 缓冲区过大，客户端应临时停止发送并提示用户
 
-```typescript
-// 方案 1: MediaSource Extensions (推荐)
-const mediaSource = new MediaSource();
-const audio = new Audio(URL.createObjectURL(mediaSource));
+### 请求关联
 
-mediaSource.addEventListener('sourceopen', () => {
-  const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-  
-  socket.on('tts_audio', (payload) => {
-    const chunk = base64ToArrayBuffer(payload.data);
-    sourceBuffer.appendBuffer(chunk);
-  });
-});
-
-// 方案 2: 音频队列播放
-const audioQueue: ArrayBuffer[] = [];
-let isPlaying = false;
-
-socket.on('tts_audio', (payload) => {
-  audioQueue.push(base64ToArrayBuffer(payload.data));
-  if (!isPlaying) playNext();
-});
-
-async function playNext() {
-  if (audioQueue.length === 0) {
-    isPlaying = false;
-    return;
-  }
-  isPlaying = true;
-  const audioContext = new AudioContext();
-  const buffer = await audioContext.decodeAudioData(audioQueue.shift()!);
-  const source = audioContext.createBufferSource();
-  source.buffer = buffer;
-  source.connect(audioContext.destination);
-  source.start();
-  source.onended = playNext;
-}
-```
-
----
-
-*Protocol Version: 1.0 | Last Updated: 2026-03-25*
+- 每次录音发送使用新的 `requestId`
+- 同一 `requestId` 的 LLM/TTS 回复用于绑定到同一消息气泡
