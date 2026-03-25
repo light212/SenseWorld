@@ -52,7 +52,7 @@ export function ConversationList({
       {/* New conversation button */}
       <button
         onClick={onCreate}
-        className="flex items-center gap-2 w-full py-2 px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 mb-4 transition-colors"
+        className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:opacity-90 mb-4 transition-opacity font-medium"
       >
         <Plus className="w-5 h-5" />
         新对话
@@ -100,10 +100,10 @@ function ConversationItem({
     <div
       onClick={onSelect}
       className={cn(
-        "group flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors",
+        "group flex items-center gap-2 p-3 rounded-xl cursor-pointer transition-colors",
         isSelected
-          ? "bg-primary-100 text-primary-900"
-          : "hover:bg-gray-100",
+          ? "bg-white/10 text-white"
+          : "text-gray-400 hover:bg-white/5 hover:text-gray-300",
         isDeleting && "opacity-50 pointer-events-none"
       )}
     >
@@ -111,7 +111,7 @@ function ConversationItem({
       <div
         className={cn(
           "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          isSelected ? "bg-primary-200" : "bg-gray-200"
+          isSelected ? "bg-blue-500/20 text-blue-400" : "bg-white/5"
         )}
       >
         <MessageCircle className="w-4 h-4" />
@@ -141,7 +141,7 @@ function ConversationItem({
         onClick={onDelete}
         className={cn(
           "flex-shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity",
-          "text-gray-400 hover:text-red-500 hover:bg-red-50"
+          "text-gray-500 hover:text-red-400 hover:bg-red-500/10"
         )}
         title="删除对话"
       >
