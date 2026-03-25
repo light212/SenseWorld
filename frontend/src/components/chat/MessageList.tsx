@@ -58,14 +58,23 @@ export function MessageList({
   }
 
   return (
-    <div className={cn("flex flex-col gap-4 p-4", className)}>
-      {messages.map((message) => (
-        <MessageItem key={message.id} message={message} />
+    <div 
+      className={cn("flex flex-col gap-4 p-4", className)}
+      role="log"
+      aria-live="polite"
+      aria-label="消息列表"
+    >
+      {messages.map((message, index) => (
+        <MessageItem 
+          key={message.id} 
+          message={message}
+          isNew={index === messages.length - 1}
+        />
       ))}
 
       {/* Streaming message */}
       {isStreaming && streamingContent && (
-        <div className="flex gap-3">
+        <div className="flex gap-3 animate-fade-in">
           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
             <svg
               className="w-4 h-4 text-primary-600"
@@ -97,20 +106,28 @@ export function MessageList({
 
 interface MessageItemProps {
   message: Message;
+  isNew?: boolean;
 }
 
-function MessageItem({ message }: MessageItemProps) {
+function MessageItem({ message, isNew = false }: MessageItemProps) {
   const isUser = message.role === "user";
   const isVoiceMessage = message.metadata?.inputType === "voice" && message.hasAudio;
 
   return (
-    <div className={cn("flex gap-3", isUser && "flex-row-reverse")}>
+    <div 
+      className={cn(
+        "flex gap-3", 
+        isUser && "flex-row-reverse",
+        isNew && "animate-slide-up"
+      )}
+    >
       {/* Avatar */}
       <div
         className={cn(
           "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
           isUser ? "bg-primary-600" : "bg-primary-100"
         )}
+        aria-hidden="true"
       >
         {isUser ? (
           <svg
@@ -182,7 +199,7 @@ function MessageItem({ message }: MessageItemProps) {
         >
           {formatDate(message.createdAt)}
           {message.metadata?.inputType === "voice" && !isVoiceMessage && (
-            <span className="ml-2">🎤</span>
+            <span className="ml-2" aria-label="语音消息">🎤</span>
           )}
         </div>
       </div>

@@ -4,7 +4,7 @@
  * Voice input component with recording visualization.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import { cn, formatDuration } from "@/lib/utils";
 
@@ -23,6 +23,7 @@ export function VoiceInput({
 }: VoiceInputProps) {
   const [transcribedText, setTranscribedText] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const {
     isRecording,
@@ -64,6 +65,28 @@ export function VoiceInput({
     }
   }, [transcribedText, onTranscriptionReceived]);
 
+  // 键盘支持：空格键触发录音
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 只在焦点在组件上时响应
+      if (!buttonRef.current?.contains(document.activeElement)) return;
+      
+      if (e.code === "Space" && !disabled) {
+        e.preventDefault();
+        if (isRecording) {
+          stopRecording();
+        } else {
+          startRecording();
+        }
+      } else if (e.code === "Escape" && isRecording) {
+        handleCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [disabled, isRecording, startRecording, stopRecording, handleCancel]);
+
   return (
     <div className={cn("flex flex-col items-center gap-4", className)}>
       {/* Recording visualization */}
@@ -74,6 +97,7 @@ export function VoiceInput({
             style={{
               transform: `scale(${1 + audioLevel * 0.5})`,
             }}
+            aria-hidden="true"
           />
           <span>录音中 {formatDuration(duration)}</span>
         </div>
@@ -81,7 +105,7 @@ export function VoiceInput({
 
       {/* Audio level bars */}
       {isRecording && (
-        <div className="flex items-end gap-1 h-8">
+        <div className="flex items-end gap-1 h-8" aria-hidden="true">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
@@ -128,6 +152,7 @@ export function VoiceInput({
             onClick={handleCancel}
             className="p-2 text-gray-500 hover:text-gray-700"
             title="取消录音"
+            aria-label="取消录音"
           >
             <svg
               className="w-6 h-6"
@@ -146,22 +171,26 @@ export function VoiceInput({
         )}
 
         <button
+          ref={buttonRef}
           onClick={handleMicClick}
           disabled={disabled}
           className={cn(
-            "p-4 rounded-full transition-all",
+            "p-4 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2",
             isRecording
               ? "bg-red-500 text-white hover:bg-red-600"
-              : "bg-primary-500 text-white hover:bg-primary-600",
+              : "bg-primary-600 text-white hover:bg-primary-700",
             disabled && "opacity-50 cursor-not-allowed"
           )}
-          title={isRecording ? "停止录音" : "开始录音"}
+          title={isRecording ? "停止录音 (空格键)" : "开始录音 (空格键)"}
+          aria-label={isRecording ? "停止录音" : "开始录音"}
+          aria-pressed={isRecording}
         >
           {isRecording ? (
             <svg
               className="w-6 h-6"
               fill="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
@@ -171,6 +200,7 @@ export function VoiceInput({
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -182,6 +212,11 @@ export function VoiceInput({
           )}
         </button>
       </div>
+      
+      {/* 键盘提示 */}
+      <p className="text-xs text-gray-400">
+        按 <kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">空格</kbd> 键{isRecording ? "停止" : "开始"}录音
+      </p>
     </div>
   );
 }

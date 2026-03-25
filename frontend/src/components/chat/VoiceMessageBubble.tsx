@@ -86,20 +86,21 @@ export function VoiceMessageBubble({
       {/* 语音条 */}
       <button
         onClick={handlePlay}
+        aria-label={isPlaying ? "暂停播放" : "播放语音"}
         className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-2xl transition-colors",
+          "flex items-center gap-2 px-3 py-2 rounded-2xl transition-all duration-200",
           isUser
             ? "bg-primary-600 text-white hover:bg-primary-700"
             : "bg-gray-100 text-gray-900 hover:bg-gray-200",
-          isPlaying && "animate-pulse"
+          isPlaying && "ring-2 ring-primary-300"
         )}
         style={{
-          minWidth: `${Math.min(60 + duration / 100, 200)}px`,
-          maxWidth: "200px",
+          minWidth: `${Math.min(80 + duration / 100, 220)}px`,
+          maxWidth: "220px",
         }}
       >
         {/* 播放图标 */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 w-5 h-5">
           {isPlaying ? (
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <rect x="6" y="4" width="4" height="16" rx="1" />
@@ -113,25 +114,25 @@ export function VoiceMessageBubble({
         </div>
 
         {/* 声波动画 */}
-        <div className="flex-1 flex items-center gap-0.5 h-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="flex-1 flex items-center gap-0.5 h-5">
+          {[...Array(5)].map((_, i) => (
             <div
               key={i}
               className={cn(
-                "flex-1 rounded-full transition-all",
-                isUser ? "bg-white/60" : "bg-gray-400"
+                "flex-1 rounded-full transition-all duration-150",
+                isUser ? "bg-white/70" : "bg-gray-400"
               )}
               style={{
                 height: isPlaying
-                  ? `${Math.sin((progress / 100) * Math.PI + i * 0.5) * 8 + 8}px`
-                  : `${4 + i * 2}px`,
+                  ? `${6 + Math.sin(progress / 10 + i) * 8}px`
+                  : `${3 + i * 2}px`,
               }}
             />
           ))}
         </div>
 
         {/* 时长 */}
-        <span className="flex-shrink-0 text-sm font-medium">
+        <span className="flex-shrink-0 text-sm font-medium tabular-nums">
           {formatDuration(duration)}
         </span>
       </button>
@@ -149,15 +150,10 @@ export function VoiceMessageBubble({
         </div>
       )}
 
-      {/* 转写文字（可选） */}
+      {/* 转写文字 - 显示在气泡内下方 */}
       {transcription && (
-        <p
-          className={cn(
-            "text-xs mt-1",
-            isUser ? "text-gray-500" : "text-gray-500"
-          )}
-        >
-          {transcription}
+        <p className="text-xs text-gray-500 mt-0.5 px-1">
+          "{transcription}"
         </p>
       )}
     </div>
