@@ -53,6 +53,7 @@ export interface MessageMetadata {
   asrConfidence?: number;
   tokensUsed?: number;
   model?: string;
+  audioBlob?: Blob; // 语音消息的音频 Blob（前端临时存储）
 }
 
 // Auth types

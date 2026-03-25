@@ -107,7 +107,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           return;
         }
 
-        // 2. Add user message to UI
+        // 2. Add user message to UI - 保存音频 Blob 用于语音条播放
         const userMessage: Message = {
           id: crypto.randomUUID(),
           conversationId: currentConvId,
@@ -116,7 +116,10 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           createdAt: new Date().toISOString(),
           hasAudio: true,
           audioDuration: duration,
-          metadata: { inputType: "voice" },
+          metadata: { 
+            inputType: "voice",
+            audioBlob: blob, // 保存 Blob 用于本地播放
+          },
         };
         addMessage(userMessage);
 

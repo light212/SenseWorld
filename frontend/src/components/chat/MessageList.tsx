@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import type { Message } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
 import { AudioPlayer } from "./AudioPlayer";
+import { VoiceMessageBubble } from "./VoiceMessageBubble";
 
 interface MessageListProps {
   messages: Message[];
@@ -100,6 +101,7 @@ interface MessageItemProps {
 
 function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user";
+  const isVoiceMessage = message.metadata?.inputType === "voice" && message.hasAudio;
 
   return (
     <div className={cn("flex gap-3", isUser && "flex-row-reverse")}>
@@ -143,22 +145,34 @@ function MessageItem({ message }: MessageItemProps) {
 
       {/* Content */}
       <div className={cn("flex-1 max-w-[80%]", isUser && "text-right")}>
-        <div
-          className={cn(
-            "inline-block rounded-lg p-3",
-            isUser ? "bg-primary-500 text-white" : "bg-gray-100"
-          )}
-        >
-          <p className="whitespace-pre-wrap">{message.content}</p>
+        {/* 语音消息样式 */}
+        {isVoiceMessage ? (
+          <VoiceMessageBubble
+            duration={message.audioDuration || 0}
+            audioBlob={message.metadata?.audioBlob}
+            audioUrl={message.metadata?.audioBlob ? undefined : `http://localhost:8000/v1/audio/${message.id}`}
+            isUser={isUser}
+            transcription={message.content}
+          />
+        ) : (
+          /* 普通文字消息 */
+          <div
+            className={cn(
+              "inline-block rounded-lg p-3",
+              isUser ? "bg-primary-500 text-white" : "bg-gray-100"
+            )}
+          >
+            <p className="whitespace-pre-wrap">{message.content}</p>
 
-          {/* Audio player for voice messages */}
-          {message.hasAudio && !isUser && (
-            <AudioPlayer
-              src={`http://localhost:8000/v1/audio/${message.id}`}
-              className="mt-2"
-            />
-          )}
-        </div>
+            {/* Audio player for AI voice messages */}
+            {message.hasAudio && !isUser && (
+              <AudioPlayer
+                src={`http://localhost:8000/v1/audio/${message.id}`}
+                className="mt-2"
+              />
+            )}
+          </div>
+        )}
 
         <div
           className={cn(
@@ -167,7 +181,7 @@ function MessageItem({ message }: MessageItemProps) {
           )}
         >
           {formatDate(message.createdAt)}
-          {message.metadata?.inputType === "voice" && (
+          {message.metadata?.inputType === "voice" && !isVoiceMessage && (
             <span className="ml-2">🎤</span>
           )}
         </div>
