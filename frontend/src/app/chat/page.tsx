@@ -235,32 +235,32 @@ export default function ChatPage() {
   // 等待 hydration 完成或正在检查
   if (!hydrated || checking) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-          <p className="text-gray-400">加载中...</p>
+          <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+          <p className="text-gray-500">加载中...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="flex h-screen flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
-      {/* Header - 深色玻璃效果 */}
-      <header className="flex-shrink-0 border-b border-white/10 px-6 py-4 bg-slate-900/50 backdrop-blur-md flex justify-between items-center">
+    <main className="flex h-screen flex-col bg-gray-50">
+      {/* Header - 亮色主题 */}
+      <header className="flex-shrink-0 border-b border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-white">SenseWorld</h1>
+          <h1 className="text-xl font-semibold text-gray-900">SenseWorld</h1>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-gray-400 text-sm">{userName}</span>
+          <span className="text-gray-600 text-sm">{userName}</span>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             <LogOut className="w-4 h-4" />
             退出
@@ -269,8 +269,8 @@ export default function ChatPage() {
       </header>
       
       <div className="flex flex-1 min-h-0">
-        {/* Conversation list sidebar - 深色卡片 */}
-        <aside className="w-64 border-r border-white/10 hidden md:flex flex-col bg-slate-800/50">
+        {/* Conversation list sidebar */}
+        <aside className="w-64 border-r border-gray-200 hidden md:flex flex-col bg-white">
           <ConversationList
             conversations={conversations}
             selectedId={currentConversationId || undefined}
@@ -282,7 +282,7 @@ export default function ChatPage() {
         </aside>
         
         {/* Chat window */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 bg-white">
           <ChatWindow />
         </div>
       </div>

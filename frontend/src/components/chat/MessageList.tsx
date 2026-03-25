@@ -40,7 +40,7 @@ export function MessageList({
 
   return (
     <div 
-      className={cn("flex flex-col gap-4 p-4 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 min-h-full", className)}
+      className={cn("flex flex-col gap-4 p-4 bg-gray-50 min-h-full", className)}
       role="log"
       aria-live="polite"
       aria-label="消息列表"
@@ -56,12 +56,12 @@ export function MessageList({
       {/* Streaming message */}
       {isStreaming && streamingContent && (
         <div className="flex gap-3 animate-fade-in">
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-            <Bot className="w-4 h-4 text-blue-400" />
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+            <Bot className="w-4 h-4 text-blue-600" />
           </div>
           <div className="flex-1">
-            <div className="bg-slate-700/50 backdrop-blur border border-slate-600/50 rounded-2xl rounded-tl-md p-3">
-              <p className="whitespace-pre-wrap text-gray-100">{streamingContent}</p>
+            <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-md p-3 shadow-sm">
+              <p className="whitespace-pre-wrap text-gray-800">{streamingContent}</p>
               <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-1" />
             </div>
           </div>
@@ -96,14 +96,14 @@ function MessageItem({ message, isNew = false }: MessageItemProps) {
           "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
           isUser 
             ? "bg-gradient-to-br from-blue-500 to-purple-600" 
-            : "bg-slate-700"
+            : "bg-gradient-to-br from-blue-100 to-purple-100"
         )}
         aria-hidden="true"
       >
         {isUser ? (
           <User className="w-4 h-4 text-white" />
         ) : (
-          <Bot className="w-4 h-4 text-blue-400" />
+          <Bot className="w-4 h-4 text-blue-600" />
         )}
       </div>
 
@@ -119,13 +119,13 @@ function MessageItem({ message, isNew = false }: MessageItemProps) {
             transcription={message.content}
           />
         ) : (
-          /* 普通文字消息 - 深色主题 */
+          /* 普通文字消息 - 亮色主题 */
           <div
             className={cn(
               "inline-block rounded-2xl px-4 py-2.5",
               isUser 
                 ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-tr-md" 
-                : "bg-slate-700/50 backdrop-blur border border-slate-600/50 text-gray-100 rounded-tl-md"
+                : "bg-white border border-gray-200 text-gray-800 rounded-tl-md shadow-sm"
             )}
           >
             <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
@@ -142,7 +142,7 @@ function MessageItem({ message, isNew = false }: MessageItemProps) {
 
         <div
           className={cn(
-            "text-xs text-gray-500 mt-1",
+            "text-xs text-gray-400 mt-1",
             isUser ? "text-right" : "text-left"
           )}
         >

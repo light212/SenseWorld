@@ -61,7 +61,7 @@ export function ConversationList({
       {/* Conversation list */}
       <div className="flex-1 overflow-y-auto space-y-1">
         {conversations.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">
+          <p className="text-sm text-gray-400 text-center py-4">
             暂无对话记录
           </p>
         ) : (
@@ -102,8 +102,8 @@ function ConversationItem({
       className={cn(
         "group flex items-center gap-2 p-3 rounded-xl cursor-pointer transition-colors",
         isSelected
-          ? "bg-white/10 text-white"
-          : "text-gray-400 hover:bg-white/5 hover:text-gray-300",
+          ? "bg-gradient-to-r from-blue-50 to-purple-50 text-gray-900 border border-blue-200"
+          : "text-gray-600 hover:bg-gray-100",
         isDeleting && "opacity-50 pointer-events-none"
       )}
     >
@@ -111,7 +111,7 @@ function ConversationItem({
       <div
         className={cn(
           "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          isSelected ? "bg-blue-500/20 text-blue-400" : "bg-white/5"
+          isSelected ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white" : "bg-gray-100 text-gray-400"
         )}
       >
         <MessageCircle className="w-4 h-4" />
@@ -119,10 +119,10 @@ function ConversationItem({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">
+        <p className={cn("text-sm font-medium truncate", isSelected && "text-gray-900")}>
           {conversation.title || "新对话"}
         </p>
-        <p className="text-xs text-gray-500 truncate">
+        <p className="text-xs text-gray-400 truncate">
           {conversation.lastMessageAt
             ? formatDate(conversation.lastMessageAt)
             : formatDate(conversation.createdAt)}
@@ -131,7 +131,9 @@ function ConversationItem({
 
       {/* Message count badge */}
       {conversation.messageCount > 0 && (
-        <span className="flex-shrink-0 text-xs text-gray-500">
+        <span className={cn("flex-shrink-0 text-xs px-2 py-0.5 rounded-full", 
+          isSelected ? "bg-blue-100 text-blue-600" : "text-gray-400 bg-gray-100"
+        )}>
           {conversation.messageCount}
         </span>
       )}
@@ -141,7 +143,7 @@ function ConversationItem({
         onClick={onDelete}
         className={cn(
           "flex-shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity",
-          "text-gray-500 hover:text-red-400 hover:bg-red-500/10"
+          "text-gray-400 hover:text-red-500 hover:bg-red-50"
         )}
         title="删除对话"
       >

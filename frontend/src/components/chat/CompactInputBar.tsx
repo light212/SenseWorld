@@ -137,10 +137,10 @@ export function CompactInputBar({
   // 录音中状态
   if (isRecording) {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-red-950/50 border-t border-white/10">
+      <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border-t border-gray-200">
         <button
           onClick={() => stopRecording(false)}
-          className="p-1.5 text-gray-400 hover:text-gray-200"
+          className="p-1.5 text-gray-500 hover:text-gray-700"
           aria-label="取消录音"
         >
           <X className="w-5 h-5" />
@@ -148,8 +148,8 @@ export function CompactInputBar({
         
         <div className="flex-1 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-sm text-gray-300">录音中</span>
-          <span className="text-sm font-mono text-white">
+          <span className="text-sm text-gray-700">录音中</span>
+          <span className="text-sm font-mono text-gray-900">
             {formatDuration(recordingDuration)}
           </span>
         </div>
@@ -164,12 +164,12 @@ export function CompactInputBar({
     );
   }
 
-  // 正常输入状态 - 深色主题
+  // 正常输入状态 - 亮色主题
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-t border-white/10 bg-slate-900">
+    <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-200 bg-white">
       {/* 更多按钮 */}
       <button
-        className="p-2 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-full transition-colors"
+        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
         title="更多"
         aria-label="更多操作"
       >
@@ -184,7 +184,7 @@ export function CompactInputBar({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder="输入消息..."
-        className="flex-1 px-4 py-2 bg-slate-800 rounded-full text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+        className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
       />
 
       {/* 视频按钮（预留） */}
@@ -198,7 +198,7 @@ export function CompactInputBar({
       <button
         onClick={() => videoInputRef.current?.click()}
         disabled={disabled || !onVideoSelect}
-        className="p-2 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
+        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
         title="发送视频"
         aria-label="发送视频"
       >

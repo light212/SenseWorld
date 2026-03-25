@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 聊天空状态组件 - 深色主题
+ * 聊天空状态组件 - 亮色主题
  */
 
 import { Mic, Video } from "lucide-react";
@@ -13,21 +13,21 @@ interface EmptyStateProps {
 
 export function EmptyState({ onMicClick, onVideoClick }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-8 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex flex-col items-center justify-center h-full text-center px-8 bg-gray-50">
       {/* 主图标 */}
-      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center mb-6">
+      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mb-6">
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
           <Mic className="w-8 h-8 text-white" />
         </div>
       </div>
 
       {/* 标题 */}
-      <h2 className="text-xl font-semibold text-white mb-2">
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">
         开始对话
       </h2>
       
       {/* 副标题 */}
-      <p className="text-gray-400 mb-8 max-w-sm">
+      <p className="text-gray-500 mb-8 max-w-sm">
         点击麦克风开始语音对话，或输入文字
       </p>
 
@@ -46,7 +46,7 @@ export function EmptyState({ onMicClick, onVideoClick }: EmptyStateProps) {
           {onVideoClick && (
             <button
               onClick={onVideoClick}
-              className="px-6 py-3 bg-white/10 backdrop-blur text-white rounded-xl font-medium hover:bg-white/20 transition-colors border border-white/10 flex items-center gap-2"
+              className="px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm"
             >
               <Video className="w-5 h-5" />
               视频理解

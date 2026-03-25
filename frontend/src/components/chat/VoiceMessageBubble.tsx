@@ -92,8 +92,8 @@ export function VoiceMessageBubble({
           "flex items-center gap-2 px-3 py-2 rounded-2xl transition-all duration-200",
           isUser
             ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
-            : "bg-slate-700/50 backdrop-blur border border-slate-600/50 text-gray-100 hover:bg-slate-700",
-          isPlaying && "ring-2 ring-blue-500/50"
+            : "bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 shadow-sm",
+          isPlaying && "ring-2 ring-blue-300"
         )}
         style={{
           minWidth: `${Math.min(80 + duration / 100, 220)}px`,
@@ -116,7 +116,7 @@ export function VoiceMessageBubble({
               key={i}
               className={cn(
                 "flex-1 rounded-full transition-all duration-150",
-                isUser ? "bg-white/70" : "bg-gray-500"
+                isUser ? "bg-white/70" : "bg-gray-400"
               )}
               style={{
                 height: isPlaying
@@ -135,11 +135,11 @@ export function VoiceMessageBubble({
 
       {/* 进度条（播放时显示） */}
       {isPlaying && (
-        <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
+        <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
           <div
             className={cn(
               "h-full transition-all",
-              isUser ? "bg-white/40" : "bg-blue-500"
+              isUser ? "bg-white/60" : "bg-blue-400"
             )}
             style={{ width: `${progress}%` }}
           />
