@@ -10,6 +10,7 @@ import type { Message } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
 import { AudioPlayer } from "./AudioPlayer";
 import { VoiceMessageBubble } from "./VoiceMessageBubble";
+import { EmptyState } from "./EmptyState";
 
 interface MessageListProps {
   messages: Message[];
@@ -33,16 +34,7 @@ export function MessageList({
 
   if (messages.length === 0 && !isStreaming) {
     return (
-      <div
-        className={cn(
-          "flex flex-col items-center justify-center h-full text-gray-400",
-          className
-        )}
-      >
-        <MessageCircle className="w-16 h-16 mb-4 opacity-50" />
-        <p>开始对话</p>
-        <p className="text-sm mt-1">点击麦克风按钮或输入文字</p>
-      </div>
+      <EmptyState />
     );
   }
 

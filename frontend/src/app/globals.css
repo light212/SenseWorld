@@ -3,6 +3,20 @@
 @tailwind utilities;
 
 :root {
+  /* 品牌色 */
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  
+  /* 深色主题 */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* 前景色 */
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 255, 255, 255;
   --background-end-rgb: 245, 245, 245;
@@ -60,4 +74,21 @@ body {
 
 .animate-fade-in {
   animation: fade-in 0.15s ease-out;
+}
+
+/* 渐变文字 */
+.text-gradient {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 发光效果 */
+.glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.glow-sm {
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 }
