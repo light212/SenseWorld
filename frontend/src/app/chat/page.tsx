@@ -3,15 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChatWindow } from "@/components/chat/ChatWindow";
-import { useAuthStore } from "@/stores/authStore";
+import { useAuthStore, useAuthHydration } from "@/stores/authStore";
 
 export default function ChatPage() {
   const router = useRouter();
   const { token, logout } = useAuthStore();
+  const hydrated = useAuthHydration();
   const [userName, setUserName] = useState("");
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    // 等待 hydration 完成后再检查登录状态
+    if (!hydrated) {
+      return;
+    }
+
     // 检查登录状态
     if (!token) {
       router.push("/login");
@@ -39,7 +45,7 @@ export default function ChatPage() {
       }
     };
     fetchUser();
-  }, [token, router, logout]);
+  }, [hydrated, token, router, logout]);
 
   const handleLogout = () => {
     logout();
@@ -47,7 +53,8 @@ export default function ChatPage() {
     router.push("/login");
   };
 
-  if (checking) {
+  // 等待 hydration 完成或正在检查
+  if (!hydrated || checking) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p>加载中...</p>
