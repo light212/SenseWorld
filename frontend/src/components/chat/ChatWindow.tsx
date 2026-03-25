@@ -20,18 +20,9 @@ interface ChatWindowProps {
 
 export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const [inputMode, setInputMode] = useState<"voice" | "text">("voice");
-  
-  // 固定 conversationId，存到 localStorage
-  const [currentConvId] = useState(() => {
-    if (conversationId) return conversationId;
-    const stored = localStorage.getItem("currentConversationId");
-    if (stored) return stored;
-    const newId = crypto.randomUUID();
-    localStorage.setItem("currentConversationId", newId);
-    return newId;
-  });
 
   const {
+    currentConversationId,
     messages,
     streamingContent,
     isStreaming,
@@ -39,21 +30,25 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     addMessage,
     setMessages,
     setIsSendingMessage,
-    updateStreamingContent,
-    clearStreamingContent,
-    setIsStreaming,
+    setCurrentConversation,
   } = useConversationStore();
 
   const { token } = useAuthStore();
 
-  // 加载历史消息
+  // 使用传入的 conversationId 或 store 中的
+  const activeConversationId = conversationId || currentConversationId;
+
+  // 加载历史消息 - 当会话变化时重新加载
   useEffect(() => {
-    if (!token) return;
+    if (!token || !activeConversationId) return;
+    
+    // 清空当前消息
+    setMessages([]);
     
     const loadMessages = async () => {
       try {
         const response = await fetch(
-          `http://localhost:8000/v1/conversations/${currentConvId}/messages`,
+          `http://localhost:8000/v1/conversations/${activeConversationId}/messages`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (response.ok) {
@@ -76,10 +71,12 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       }
     };
     loadMessages();
-  }, [currentConvId, token, setMessages]);
+  }, [activeConversationId, token, setMessages]);
 
   const handleVoiceRecordingComplete = useCallback(
     async (blob: Blob, duration: number) => {
+      if (!activeConversationId) return;
+      
       setIsSendingMessage(true);
 
       try {
@@ -88,7 +85,6 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         formData.append("audio", blob, "recording.webm");
         formData.append("language", "zh");
 
-        console.log("Uploading audio for ASR...");
         const asrResponse = await fetch("http://localhost:8000/v1/speech/transcribe", {
           method: "POST",
           body: formData,
@@ -100,17 +96,16 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
         const asrResult = await asrResponse.json();
         const transcribedText = asrResult.text;
-        console.log("ASR result:", transcribedText);
 
         if (!transcribedText || transcribedText.trim() === "") {
           console.warn("Empty ASR result");
           return;
         }
 
-        // 2. Add user message to UI - 保存音频 Blob 用于语音条播放
+        // 2. Add user message to UI
         const userMessage: Message = {
           id: crypto.randomUUID(),
-          conversationId: currentConvId,
+          conversationId: activeConversationId,
           role: "user",
           content: transcribedText,
           createdAt: new Date().toISOString(),
@@ -118,13 +113,12 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           audioDuration: duration,
           metadata: { 
             inputType: "voice",
-            audioBlob: blob, // 保存 Blob 用于本地播放
+            audioBlob: blob,
           },
         };
         addMessage(userMessage);
 
         // 3. Call chat API
-        console.log("Calling /v1/chat with:", { conversation_id: currentConvId, content: transcribedText });
         const chatResponse = await fetch("http://localhost:8000/v1/chat", {
           method: "POST",
           headers: {
@@ -132,7 +126,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            conversation_id: currentConvId,
+            conversation_id: activeConversationId,
             content: transcribedText,
           }),
         });
@@ -142,12 +136,11 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         }
 
         const chatData = await chatResponse.json();
-        console.log("Chat response:", chatData);
 
         // 4. Add AI response
         const aiMessage: Message = {
           id: chatData.id,
-          conversationId: currentConvId,
+          conversationId: activeConversationId,
           role: "assistant",
           content: chatData.content,
           createdAt: chatData.created_at,
@@ -160,18 +153,20 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         setIsSendingMessage(false);
       }
     },
-    [currentConvId, token, addMessage, setIsSendingMessage]
+    [activeConversationId, token, addMessage, setIsSendingMessage]
   );
 
   const handleTextSend = useCallback(
     async (text: string) => {
+      if (!activeConversationId) return;
+      
       setIsSendingMessage(true);
 
       try {
         // Add user message to UI immediately
         const userMessage: Message = {
           id: crypto.randomUUID(),
-          conversationId: currentConvId,
+          conversationId: activeConversationId,
           role: "user",
           content: text,
           createdAt: new Date().toISOString(),
@@ -181,7 +176,6 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         addMessage(userMessage);
 
         // Call backend API
-        console.log("Calling /v1/chat with:", { conversation_id: currentConvId, content: text });
         const response = await fetch("http://localhost:8000/v1/chat", {
           method: "POST",
           headers: {
@@ -189,7 +183,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            conversation_id: currentConvId,
+            conversation_id: activeConversationId,
             content: text,
           }),
         });
@@ -199,12 +193,11 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         }
 
         const data = await response.json();
-        console.log("Chat response:", data);
 
         // Add AI response
         const aiMessage: Message = {
           id: data.id,
-          conversationId: currentConvId,
+          conversationId: activeConversationId,
           role: "assistant",
           content: data.content,
           createdAt: data.created_at,
@@ -217,12 +210,12 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         setIsSendingMessage(false);
       }
     },
-    [currentConvId, token, addMessage, setIsSendingMessage]
+    [activeConversationId, token, addMessage, setIsSendingMessage]
   );
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      {/* Messages area - 唯一可滚动区域 */}
+      {/* Messages area */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <MessageList
           messages={messages}
@@ -231,34 +224,32 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         />
       </div>
 
-      {/* Input area - 固定在底部 */}
-      <div className="flex-shrink-0 border-t p-4 bg-white">
-        {/* Input mode toggle */}
-        <div className="flex justify-center mb-3">
-          <div className="inline-flex rounded-lg bg-gray-100 p-1">
-            <button
-              onClick={() => setInputMode("voice")}
-              className={cn(
-                "px-4 py-1.5 rounded-md text-sm transition-colors",
-                inputMode === "voice"
-                  ? "bg-white shadow-sm text-primary-600"
-                  : "text-gray-600 hover:text-gray-900"
-              )}
-            >
-              🎤 语音
-            </button>
-            <button
-              onClick={() => setInputMode("text")}
-              className={cn(
-                "px-4 py-1.5 rounded-md text-sm transition-colors",
-                inputMode === "text"
-                  ? "bg-white shadow-sm text-primary-600"
-                  : "text-gray-600 hover:text-gray-900"
-              )}
-            >
-              ⌨️ 文字
-            </button>
-          </div>
+      {/* Input area - 紧凑布局 */}
+      <div className="flex-shrink-0 border-t bg-white p-3">
+        {/* Input mode toggle - 更紧凑 */}
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <button
+            onClick={() => setInputMode("voice")}
+            className={cn(
+              "px-3 py-1 rounded-full text-sm transition-colors",
+              inputMode === "voice"
+                ? "bg-primary-100 text-primary-700"
+                : "text-gray-500 hover:text-gray-700"
+            )}
+          >
+            🎤 语音
+          </button>
+          <button
+            onClick={() => setInputMode("text")}
+            className={cn(
+              "px-3 py-1 rounded-full text-sm transition-colors",
+              inputMode === "text"
+                ? "bg-primary-100 text-primary-700"
+                : "text-gray-500 hover:text-gray-700"
+            )}
+          >
+            ⌨️ 文字
+          </button>
         </div>
 
         {/* Input component */}
@@ -266,12 +257,13 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           <VoiceInput
             onRecordingComplete={handleVoiceRecordingComplete}
             disabled={isSendingMessage || isStreaming}
+            className="compact"
           />
         ) : (
           <TextInput
             onSend={handleTextSend}
             disabled={isSendingMessage || isStreaming}
-            placeholder="输入消息，按 Enter 发送..."
+            placeholder="输入消息..."
           />
         )}
       </div>

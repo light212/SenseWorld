@@ -88,7 +88,7 @@ export function VoiceInput({
   }, [disabled, isRecording, startRecording, stopRecording, handleCancel]);
 
   return (
-    <div className={cn("flex flex-col items-center gap-4", className)}>
+    <div className={cn("flex flex-col items-center gap-2", className)}>
       {/* Recording visualization */}
       {isRecording && (
         <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -99,74 +99,35 @@ export function VoiceInput({
             }}
             aria-hidden="true"
           />
-          <span>录音中 {formatDuration(duration)}</span>
+          <span>{formatDuration(duration)}</span>
         </div>
       )}
 
       {/* Audio level bars */}
       {isRecording && (
-        <div className="flex items-end gap-1 h-8" aria-hidden="true">
+        <div className="flex items-end gap-1 h-6" aria-hidden="true">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
               className="w-1 bg-primary-500 rounded-full transition-all duration-75"
               style={{
-                height: `${Math.max(4, audioLevel * 32 * (0.5 + Math.random() * 0.5))}px`,
+                height: `${Math.max(4, audioLevel * 24 * (0.5 + Math.random() * 0.5))}px`,
               }}
             />
           ))}
         </div>
       )}
 
-      {/* Edit transcription */}
-      {isEditing && transcribedText && (
-        <div className="w-full">
-          <textarea
-            value={transcribedText}
-            onChange={(e) => setTranscribedText(e.target.value)}
-            className="w-full p-2 border rounded-lg resize-none"
-            rows={2}
-            placeholder="编辑转写文本..."
-          />
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={handleEditSubmit}
-              className="px-4 py-1 bg-primary-600 text-white rounded-lg text-sm"
-            >
-              发送
-            </button>
-            <button
-              onClick={() => setIsEditing(false)}
-              className="px-4 py-1 border rounded-lg text-sm"
-            >
-              取消
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Main controls */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {isRecording && (
           <button
             onClick={handleCancel}
-            className="p-2 text-gray-500 hover:text-gray-700"
-            title="取消录音"
+            className="p-2 text-gray-400 hover:text-gray-600 text-sm"
+            title="取消录音 (Esc)"
             aria-label="取消录音"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            取消
           </button>
         )}
 
@@ -175,19 +136,19 @@ export function VoiceInput({
           onClick={handleMicClick}
           disabled={disabled}
           className={cn(
-            "p-4 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2",
+            "p-3 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-primary-300",
             isRecording
               ? "bg-red-500 text-white hover:bg-red-600"
               : "bg-primary-600 text-white hover:bg-primary-700",
             disabled && "opacity-50 cursor-not-allowed"
           )}
-          title={isRecording ? "停止录音 (空格键)" : "开始录音 (空格键)"}
+          title={isRecording ? "停止录音" : "开始录音"}
           aria-label={isRecording ? "停止录音" : "开始录音"}
           aria-pressed={isRecording}
         >
           {isRecording ? (
             <svg
-              className="w-6 h-6"
+              className="w-5 h-5"
               fill="currentColor"
               viewBox="0 0 24 24"
               aria-hidden="true"
@@ -196,7 +157,7 @@ export function VoiceInput({
             </svg>
           ) : (
             <svg
-              className="w-6 h-6"
+              className="w-5 h-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -212,11 +173,6 @@ export function VoiceInput({
           )}
         </button>
       </div>
-      
-      {/* 键盘提示 */}
-      <p className="text-xs text-gray-400">
-        按 <kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">空格</kbd> 键{isRecording ? "停止" : "开始"}录音
-      </p>
     </div>
   );
 }
