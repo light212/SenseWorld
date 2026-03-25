@@ -1,0 +1,564 @@
+openapi: 3.1.0
+info:
+  title: SenseWorld 多模态 AI 对话平台 API
+  description: 支持语音对话的 AI 平台 REST API
+  version: 1.0.0
+  contact:
+    name: SenseWorld Team
+
+servers:
+  - url: https://api.senseworld.ai/v1
+    description: Production server
+  - url: http://localhost:8000/v1
+    description: Development server
+
+tags:
+  - name: auth
+    description: 用户认证
+  - name: conversations
+    description: 对话管理
+  - name: messages
+    description: 消息操作
+  - name: speech
+    description: 语音处理
+
+paths:
+  # ==================== 认证 ====================
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: 用户注册
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: 邮箱已存在
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: 用户登录
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 认证失败
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: 用户登出
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: 登出成功
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: 获取当前用户信息
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 用户信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # ==================== 对话 ====================
+  /conversations:
+    get:
+      tags: [conversations]
+      summary: 获取对话列表
+      operationId: listConversations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 对话列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationList'
+
+    post:
+      tags: [conversations]
+      summary: 创建新对话
+      operationId: createConversation
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+
+  /conversations/{conversationId}:
+    get:
+      tags: [conversations]
+      summary: 获取对话详情
+      operationId: getConversation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/conversationId'
+      responses:
+        '200':
+          description: 对话详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [conversations]
+      summary: 更新对话
+      operationId: updateConversation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/conversationId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConversationRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+
+    delete:
+      tags: [conversations]
+      summary: 删除对话
+      operationId: deleteConversation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/conversationId'
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== 消息 ====================
+  /conversations/{conversationId}/messages:
+    get:
+      tags: [messages]
+      summary: 获取对话消息
+      operationId: listMessages
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/conversationId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: before
+          in: query
+          description: 获取此消息ID之前的消息
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 消息列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageList'
+
+    post:
+      tags: [messages]
+      summary: 发送文字消息
+      operationId: sendMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/conversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: 消息已发送，AI回复通过 WebSocket 推送
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  # ==================== 语音 ====================
+  /speech/transcribe:
+    post:
+      tags: [speech]
+      summary: 语音转文字 (ASR)
+      operationId: transcribeAudio
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: 音频文件 (WebM/MP3/WAV)
+                language:
+                  type: string
+                  default: zh
+              required:
+                - audio
+      responses:
+        '200':
+          description: 转写结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionResult'
+        '400':
+          description: 音频格式不支持或文件过大
+
+  /speech/synthesize:
+    post:
+      tags: [speech]
+      summary: 文字转语音 (TTS)
+      operationId: synthesizeSpeech
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SynthesizeRequest'
+      responses:
+        '200':
+          description: 音频流
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    conversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: 未认证
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    # ========== 认证 ==========
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+        tokenType:
+          type: string
+          default: bearer
+        expiresIn:
+          type: integer
+          description: Token 过期时间（秒）
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+        createdAt:
+          type: string
+          format: date-time
+
+    UserPreferences:
+      type: object
+      properties:
+        voiceEnabled:
+          type: boolean
+          default: true
+        autoPlayResponse:
+          type: boolean
+          default: true
+        ttsVoice:
+          type: string
+          default: alloy
+          enum: [alloy, echo, fable, onyx, nova, shimmer]
+        language:
+          type: string
+          default: zh-CN
+
+    # ========== 对话 ==========
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastMessageAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+
+    ConversationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Conversation'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    ConversationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+
+    CreateConversationRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+
+    UpdateConversationRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+
+    # ========== 消息 ==========
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        hasAudio:
+          type: boolean
+        audioDuration:
+          type: integer
+          description: 音频时长（毫秒）
+
+    MessageList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        hasMore:
+          type: boolean
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          maxLength: 10000
+        inputType:
+          type: string
+          enum: [text, voice]
+          default: text
+
+    # ========== 语音 ==========
+    TranscriptionResult:
+      type: object
+      properties:
+        text:
+          type: string
+          description: 识别出的文字
+        confidence:
+          type: number
+          description: 置信度 (0-1)
+        duration:
+          type: integer
+          description: 音频时长（毫秒）
+        language:
+          type: string
+
+    SynthesizeRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          maxLength: 4096
+        voice:
+          type: string
+          default: alloy
+          enum: [alloy, echo, fable, onyx, nova, shimmer]
+        speed:
+          type: number
+          default: 1.0
+          minimum: 0.25
+          maximum: 4.0
+
+    # ========== 通用 ==========
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
