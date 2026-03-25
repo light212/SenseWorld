@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useAuthStore, useAuthHydration } from "@/stores/authStore";
+import { useConversationStore } from "@/stores/conversationStore";
 
 export default function ChatPage() {
   const router = useRouter();
   const { token, logout } = useAuthStore();
   const hydrated = useAuthHydration();
+  const { currentConversationId, setCurrentConversation } = useConversationStore();
   const [userName, setUserName] = useState("");
   const [checking, setChecking] = useState(true);
 
@@ -47,6 +49,50 @@ export default function ChatPage() {
     fetchUser();
   }, [hydrated, token, router, logout]);
 
+  // 自动创建新会话
+  useEffect(() => {
+    if (!hydrated || !token || checking) {
+      return;
+    }
+
+    const ensureConversation = async () => {
+      // 如果已有当前会话，不需要创建
+      if (currentConversationId) {
+        return;
+      }
+
+      // 检查 localStorage 中是否有保存的会话 ID
+      const savedConvId = localStorage.getItem("currentConversationId");
+      if (savedConvId) {
+        setCurrentConversation(savedConvId);
+        return;
+      }
+
+      // 创建新会话
+      try {
+        const response = await fetch("http://localhost:8000/v1/conversations", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ title: "新对话" }),
+        });
+
+        if (response.ok) {
+          const conversation = await response.json();
+          setCurrentConversation(conversation.id);
+          localStorage.setItem("currentConversationId", conversation.id);
+          console.log("Created new conversation:", conversation.id);
+        }
+      } catch (error) {
+        console.error("Failed to create conversation:", error);
+      }
+    };
+
+    ensureConversation();
+  }, [hydrated, token, checking, currentConversationId, setCurrentConversation]);
+
   const handleLogout = () => {
     logout();
     localStorage.removeItem("currentConversationId");
@@ -76,7 +122,7 @@ export default function ChatPage() {
           </button>
         </div>
       </header>
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         {/* Conversation list sidebar */}
         <aside className="w-64 border-r p-4 hidden md:block bg-gray-50">
           <button className="w-full py-2 px-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 mb-4">
@@ -85,7 +131,7 @@ export default function ChatPage() {
           <p className="text-sm text-gray-500">对话列表</p>
         </aside>
         {/* Chat window */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           <ChatWindow />
         </div>
       </div>

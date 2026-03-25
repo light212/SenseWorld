@@ -219,8 +219,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Messages area - 可滚动 */}
+      <div className="flex-1 overflow-y-auto min-h-0">
         <MessageList
           messages={messages}
           streamingContent={streamingContent}
@@ -228,8 +228,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         />
       </div>
 
-      {/* Input area */}
-      <div className="border-t p-4 bg-white">
+      {/* Input area - 固定在底部 */}
+      <div className="flex-shrink-0 border-t p-4 bg-white sticky bottom-0">
         {/* Input mode toggle */}
         <div className="flex justify-center mb-3">
           <div className="inline-flex rounded-lg bg-gray-100 p-1">
