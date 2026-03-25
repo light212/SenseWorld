@@ -235,9 +235,9 @@ source.connect(analyser);
 
 | 组件 | 技术选型 | 状态 |
 |------|----------|------|
-| 语音识别 | OpenAI Whisper API | ✅ 确定 |
-| 大语言模型 | OpenAI GPT-4 | ✅ 确定 |
-| 语音合成 | OpenAI TTS API | ✅ 确定 |
+| 语音识别 | faster-whisper (small) | ✅ 确定 |
+| 大语言模型 | LiteLLM → Claude | ✅ 确定 |
+| 语音合成 | edge-tts | ✅ 确定 |
 | 后端框架 | FastAPI + WebSocket | ✅ 确定 |
 | 前端框架 | Next.js 14 + React 18 | ✅ 确定 |
 | 数据库 | PostgreSQL + Redis | ✅ 确定 |
