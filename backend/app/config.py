@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 
     # Application
     debug: bool = False
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://localhost:3001"
 
     # Logging
     log_level: str = "INFO"
