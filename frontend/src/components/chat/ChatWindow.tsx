@@ -210,41 +210,18 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   }, [activeConversationId, token, updateStreamingContent, clearStreamingContent, setIsStreaming, addMessage, setIsSendingMessage, playNextAudio]);
 
   const handleVoiceRecordingComplete = useCallback(
-    async (blob: Blob, duration: number) => {
+    async (blob: Blob, duration: number, confirmedText: string) => {
       if (!activeConversationId) return;
       
       setIsSendingMessage(true);
 
       try {
-        // 1. Upload audio for ASR
-        const formData = new FormData();
-        formData.append("audio", blob, "recording.webm");
-        formData.append("language", "zh");
-
-        const asrResponse = await fetch("http://localhost:8000/v1/speech/transcribe", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!asrResponse.ok) {
-          throw new Error("ASR request failed");
-        }
-
-        const asrResult = await asrResponse.json();
-        const transcribedText = asrResult.text;
-
-        if (!transcribedText || transcribedText.trim() === "") {
-          console.warn("Empty ASR result");
-          setIsSendingMessage(false);
-          return;
-        }
-
-        // 2. Add user message to UI
+        // 添加用户消息到 UI
         const userMessage: Message = {
           id: crypto.randomUUID(),
           conversationId: activeConversationId,
           role: "user",
-          content: transcribedText,
+          content: confirmedText,
           createdAt: new Date().toISOString(),
           hasAudio: true,
           audioDuration: duration,
@@ -255,8 +232,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         };
         addMessage(userMessage);
 
-        // 3. 流式调用 chat API
-        await streamChat(transcribedText);
+        // 流式调用 chat API
+        await streamChat(confirmedText);
 
       } catch (error) {
         console.error("Failed to process voice message:", error);
