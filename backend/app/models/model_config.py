@@ -5,7 +5,7 @@ ModelConfig ORM model for storing LLM/AI model configurations.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, Numeric, String, Text
 from sqlalchemy import JSON
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import Mapped, mapped_column
@@ -39,11 +39,40 @@ class ModelConfig(Base):
         nullable=False,
         comment="Provider: dashscope, openai",
     )
+    api_key_encrypted: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Encrypted API key",
+    )
     config: Mapped[dict] = mapped_column(
         JSON,
         default=dict,
         server_default="{}",
         comment="Model-specific config",
+    )
+    price_per_1k_input_tokens: Mapped[float] = mapped_column(
+        Numeric(10, 6),
+        default=0,
+        server_default="0",
+        comment="Price per 1K input tokens",
+    )
+    price_per_1k_output_tokens: Mapped[float] = mapped_column(
+        Numeric(10, 6),
+        default=0,
+        server_default="0",
+        comment="Price per 1K output tokens",
+    )
+    is_default: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+        comment="Default model for type and terminal",
+    )
+    terminal_type: Mapped[str] = mapped_column(
+        String(20),
+        default="all",
+        server_default="all",
+        comment="Terminal: all, web, ios, android, miniprogram",
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,

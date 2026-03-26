@@ -13,6 +13,7 @@ from typing import Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.database import async_session_maker
 from app.core.logging import (
     get_logger,
     generate_trace_id,
@@ -20,6 +21,7 @@ from app.core.logging import (
     set_user_id,
     get_trace_id,
 )
+from app.services.request_log_service import RequestLogService
 
 logger = get_logger(__name__)
 
@@ -71,6 +73,31 @@ class RequestTraceMiddleware(BaseHTTPMiddleware):
                     }
                 }
             )
+
+            # 写入请求日志（跳过健康检查与文档）
+            if path not in {"/health", "/docs", "/openapi.json", "/redoc"}:
+                try:
+                    request_type = path.strip("/").split("/")[-1] or "unknown"
+                    conversation_id = request.query_params.get("conversation_id")
+                    user_agent = request.headers.get("user-agent")
+                    async with async_session_maker() as session:
+                        service = RequestLogService(session)
+                        await service.record_request(
+                            trace_id=trace_id,
+                            request_type=request_type,
+                            status_code=response.status_code,
+                            latency_ms=int(elapsed_ms),
+                            conversation_id=conversation_id,
+                            user_id=None,
+                            ip_address=client_ip,
+                            user_agent=user_agent,
+                            error_message=None if response.status_code < 400 else f"HTTP {response.status_code}",
+                        )
+                except Exception as log_error:
+                    logger.warning(
+                        "Failed to persist request log",
+                        extra={"extra_data": {"error": str(log_error)}},
+                    )
             
             return response
             

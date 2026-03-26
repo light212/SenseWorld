@@ -42,6 +42,7 @@ class UserResponse(UserBase):
     """User response schema."""
 
     id: UUID
+    role: str = "user"
     preferences: UserPreferences = Field(default_factory=UserPreferences)
     is_active: bool = True
     created_at: datetime

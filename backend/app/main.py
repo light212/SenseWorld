@@ -4,6 +4,9 @@ SenseWorld Backend Application
 
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,6 +16,7 @@ from app.core.database import close_redis
 from app.core.logging import setup_logging, get_logger, get_trace_id
 from app.core.exceptions import AppException, ErrorCode
 from app.core.middleware import RequestTraceMiddleware
+from app.tasks.cleanup import cleanup_old_logs
 
 # 初始化日志系统
 setup_logging()
@@ -23,9 +27,22 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan management."""
     logger.info("Starting SenseWorld Backend...")
-    yield
-    logger.info("Shutting down SenseWorld Backend...")
-    await close_redis()
+
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        cleanup_old_logs,
+        CronTrigger(hour=3, minute=0),
+        id="cleanup_old_logs",
+        replace_existing=True,
+    )
+    scheduler.start()
+
+    try:
+        yield
+    finally:
+        logger.info("Shutting down SenseWorld Backend...")
+        scheduler.shutdown()
+        await close_redis()
 
 
 app = FastAPI(
@@ -56,6 +73,16 @@ async def app_exception_handler(request: Request, exc: AppException):
         f"Application error: {exc.code.value} - {exc.message}",
         extra={"extra_data": {"code": exc.code.value, "details": exc.details}}
     )
+    
+    # 获取请求的 Origin
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin in settings.cors_origins_list:
+        headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+        }
+    
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -66,6 +93,7 @@ async def app_exception_handler(request: Request, exc: AppException):
                 "trace_id": get_trace_id(),
             }
         },
+        headers=headers,
     )
 
 
@@ -79,6 +107,16 @@ async def global_exception_handler(request: Request, exc: Exception):
         exc_info=True,
         extra={"extra_data": {"trace_id": trace_id}}
     )
+    
+    # 获取请求的 Origin
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin in settings.cors_origins_list:
+        headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+        }
+    
     return JSONResponse(
         status_code=500,
         content={
@@ -88,6 +126,7 @@ async def global_exception_handler(request: Request, exc: Exception):
                 "trace_id": trace_id,
             }
         },
+        headers=headers,
     )
 
 
