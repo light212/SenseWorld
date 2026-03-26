@@ -36,9 +36,20 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const { token } = useAuthStore();
   const audioQueueRef = useRef<string[]>([]);
   const isPlayingRef = useRef(false);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null); // Bug 1: 跟踪当前音频
 
   // 使用传入的 conversationId 或 store 中的
   const activeConversationId = conversationId || currentConversationId;
+
+  // Bug 1: 停止当前播放的音频
+  const stopCurrentAudio = useCallback(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    isPlayingRef.current = false;
+    audioQueueRef.current = [];
+  }, []);
 
   // 播放音频队列
   const playNextAudio = useCallback(async () => {
@@ -54,14 +65,19 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         
+        // Bug 1: 保存当前音频引用
+        currentAudioRef.current = audio;
+        
         audio.onended = () => {
           URL.revokeObjectURL(url);
+          currentAudioRef.current = null;
           isPlayingRef.current = false;
           playNextAudio();
         };
         
         audio.onerror = () => {
           URL.revokeObjectURL(url);
+          currentAudioRef.current = null;
           isPlayingRef.current = false;
           playNextAudio();
         };
@@ -69,15 +85,26 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         await audio.play();
       } catch (error) {
         console.error("Audio playback error:", error);
+        currentAudioRef.current = null;
         isPlayingRef.current = false;
         playNextAudio();
       }
     }
   }, []);
 
+  // Bug 1: 切换会话时停止音频
+  useEffect(() => {
+    return () => {
+      stopCurrentAudio();
+    };
+  }, [activeConversationId, stopCurrentAudio]);
+
   // 加载历史消息 - 当会话变化时重新加载
   useEffect(() => {
     if (!token || !activeConversationId) return;
+    
+    // Bug 1: 停止当前音频
+    stopCurrentAudio();
     
     // 清空当前消息
     setMessages([]);
@@ -108,7 +135,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       }
     };
     loadMessages();
-  }, [activeConversationId, token, setMessages]);
+  }, [activeConversationId, token, setMessages, stopCurrentAudio]);
 
   // 流式聊天请求
   const streamChat = useCallback(async (text: string) => {
@@ -155,7 +182,6 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
         for (const line of lines) {
           if (line.startsWith("event: ")) {
-            const eventType = line.slice(7).trim();
             continue;
           }
           
@@ -165,19 +191,16 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               const data = JSON.parse(dataStr);
               
               if (data.content) {
-                // 文本片段
                 fullContent += data.content;
                 updateStreamingContent(data.content);
               }
               
               if (data.audio_base64) {
-                // 音频片段
                 audioQueueRef.current.push(data.audio_base64);
                 playNextAudio();
               }
               
               if (data.message_id) {
-                // 完成事件
                 messageId = data.message_id;
               }
             } catch (e) {
@@ -216,7 +239,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       setIsSendingMessage(true);
 
       try {
-        // 添加用户消息到 UI
+        // Bug 2: 确保语音消息有正确的 metadata
         const userMessage: Message = {
           id: crypto.randomUUID(),
           conversationId: activeConversationId,

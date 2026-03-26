@@ -80,7 +80,10 @@ interface MessageItemProps {
 
 function MessageItem({ message, isNew = false }: MessageItemProps) {
   const isUser = message.role === "user";
-  const isVoiceMessage = message.metadata?.inputType === "voice" && message.hasAudio;
+  
+  // Bug 2: 修复语音消息判断逻辑
+  // 只要是语音输入（有 inputType: "voice"），就显示为语音条
+  const isVoiceMessage = message.metadata?.inputType === "voice";
 
   return (
     <div 
@@ -109,8 +112,8 @@ function MessageItem({ message, isNew = false }: MessageItemProps) {
 
       {/* Content */}
       <div className={cn("flex-1 max-w-[80%]", isUser && "text-right")}>
-        {/* 语音消息样式 */}
-        {isVoiceMessage ? (
+        {/* 语音消息样式 - 用户语音显示语音条 */}
+        {isVoiceMessage && isUser ? (
           <VoiceMessageBubble
             duration={message.audioDuration || 0}
             audioBlob={message.metadata?.audioBlob}
@@ -147,9 +150,6 @@ function MessageItem({ message, isNew = false }: MessageItemProps) {
           )}
         >
           {formatDate(message.createdAt)}
-          {message.metadata?.inputType === "voice" && !isVoiceMessage && (
-            <span className="ml-2" aria-label="语音消息">🎤</span>
-          )}
         </div>
       </div>
     </div>
