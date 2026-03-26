@@ -40,6 +40,14 @@ const modelTypeDescriptions: Record<string, string> = {
   vd: "视频内容分析",
 };
 
+// 终端类型
+const terminalTypes = [
+  { id: "web", label: "Web", available: true },
+  { id: "ios", label: "iOS", available: false, hint: "即将支持" },
+  { id: "android", label: "Android", available: false, hint: "即将支持" },
+  { id: "miniprogram", label: "小程序", available: false, hint: "即将支持" },
+];
+
 export default function AdminModelsPage() {
   const { token } = useAuthStore();
   const [configs, setConfigs] = useState<ModelConfig[]>([]);
