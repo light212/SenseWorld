@@ -12,7 +12,7 @@
 
 - Node.js 18+ / pnpm 或 npm
 - Python 3.11+
-- PostgreSQL 15+
+- MySQL 8+
 - Redis 7+
 - (可选) Docker / Docker Compose
 
@@ -23,7 +23,7 @@
 ### Backend (.env)
 
 ```
-DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/senseworld
+DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/senseworld
 REDIS_URL=redis://localhost:6379/0
 JWT_SECRET=replace-me
 OPENAI_API_KEY=replace-me
@@ -49,16 +49,16 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws/chat
 ### 方式 A：使用 Docker Compose
 
 ```
-docker compose up -d postgres redis
+docker compose up -d mysql redis
 ```
 
 ### 方式 B：使用本地服务
 
-- 启动 PostgreSQL 与 Redis
+- 启动 MySQL 与 Redis
 - 创建数据库 `senseworld`
 
-```
-createdb senseworld
+```sql
+CREATE DATABASE senseworld CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ---

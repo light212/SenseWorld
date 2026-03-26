@@ -5,7 +5,7 @@
 ## 技术栈
 
 - **Framework**: FastAPI
-- **Database**: PostgreSQL + Redis
+- **Database**: MySQL 8+ + Redis
 - **AI Services**: OpenAI (Whisper, GPT-4, TTS)
 
 ## 开发环境设置
@@ -13,7 +13,7 @@
 ### 前置条件
 
 - Python 3.11+
-- PostgreSQL 15+
+- MySQL 8+
 - Redis 7+
 
 ### 安装
