@@ -57,8 +57,8 @@ class Message(Base):
     )
     extra_data: Mapped[dict] = mapped_column(
         JSON,
+        nullable=False,
         default=dict,
-        server_default="{}",
     )
 
     # Relationships

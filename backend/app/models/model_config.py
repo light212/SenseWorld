@@ -46,8 +46,8 @@ class ModelConfig(Base):
     )
     config: Mapped[dict] = mapped_column(
         JSON,
+        nullable=False,
         default=dict,
-        server_default="{}",
         comment="Model-specific config",
     )
     price_per_1k_input_tokens: Mapped[float] = mapped_column(

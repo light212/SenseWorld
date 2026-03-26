@@ -45,8 +45,8 @@ class User(Base):
     )
     preferences: Mapped[dict] = mapped_column(
         JSON,
+        nullable=False,
         default=dict,
-        server_default="{}",
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
