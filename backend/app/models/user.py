@@ -37,6 +37,12 @@ class User(Base):
         String(100),
         nullable=False,
     )
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default="user",
+        server_default="user",
+        nullable=False,
+    )
     preferences: Mapped[dict] = mapped_column(
         JSON,
         default=dict,
@@ -65,6 +71,11 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def is_admin(self) -> bool:
+        """Check if user is admin."""
+        return self.role == "admin"
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"

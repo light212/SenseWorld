@@ -115,6 +115,7 @@ from app.api.v1.message import router as message_router
 from app.api.v1.speech import router as speech_router
 from app.api.v1.audio import router as audio_router
 from app.api.v1.chat import router as chat_router
+from app.api.v1.admin import router as admin_router
 from app.api.websocket import router as websocket_router
 
 app.include_router(auth_router, prefix="/v1")
@@ -123,4 +124,5 @@ app.include_router(message_router, prefix="/v1")
 app.include_router(speech_router, prefix="/v1")
 app.include_router(audio_router, prefix="/v1")
 app.include_router(chat_router, prefix="/v1")
+app.include_router(admin_router, prefix="/v1")
 app.include_router(websocket_router)
