@@ -25,6 +25,21 @@ interface TestResult {
 const modelTypes = ["llm", "asr", "tts", "vd"];
 const providers = ["dashscope", "openai", "other"];
 
+// 模型类型中文映射
+const modelTypeLabels: Record<string, string> = {
+  llm: "大语言模型",
+  asr: "语音识别",
+  tts: "语音合成",
+  vd: "视频理解",
+};
+
+const modelTypeDescriptions: Record<string, string> = {
+  llm: "文字对话、文本生成",
+  asr: "语音转文字",
+  tts: "文字转语音",
+  vd: "视频内容分析",
+};
+
 export default function AdminModelsPage() {
   const { token } = useAuthStore();
   const [configs, setConfigs] = useState<ModelConfig[]>([]);
@@ -332,7 +347,7 @@ export default function AdminModelsPage() {
                         config.model_type === "vd" && "bg-orange-100 text-orange-700"
                       )}
                     >
-                      {config.model_type.toUpperCase()}
+                      {modelTypeLabels[config.model_type] || config.model_type.toUpperCase()}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 font-mono">{config.model_name}</td>
