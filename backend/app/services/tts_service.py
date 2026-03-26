@@ -63,26 +63,22 @@ class TTSService:
                 raise Exception(f"TTS API error: {error_msg}")
             
             # 获取音频数据
-            audio_data = response.output
+            # response.output 是 MultiModalConversationOutput 对象
+            # 通过 response.output.audio.url 获取音频 URL
+            audio_info = response.output.audio
             
-            # 如果返回的是 URL，需要下载
-            if isinstance(audio_data, dict) and 'audio_url' in audio_data:
+            if audio_info and audio_info.url:
+                # 下载音频
                 import httpx
                 async with httpx.AsyncClient() as client:
-                    audio_response = await client.get(audio_data['audio_url'])
-                    return audio_response.content
+                    audio_response = await client.get(audio_info.url)
+                    if audio_response.status_code == 200:
+                        return audio_response.content
+                    else:
+                        raise Exception(f"Failed to download audio: {audio_response.status_code}")
             
-            # 如果返回的是直接的音频数据
-            if isinstance(audio_data, bytes):
-                return audio_data
-            
-            # 如果返回的是 base64 编码
-            if isinstance(audio_data, dict) and 'audio' in audio_data:
-                import base64
-                return base64.b64decode(audio_data['audio'])
-            
-            logger.warning(f"Unexpected response format: {type(audio_data)}")
-            raise ValueError("Unexpected TTS response format")
+            logger.error(f"No audio URL in response: {response.output}")
+            raise ValueError("No audio URL in TTS response")
             
         except Exception as e:
             logger.error(f"TTS synthesis failed: {e}")
