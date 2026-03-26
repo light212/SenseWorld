@@ -2,16 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, FileText, Users, LogOut, Menu, X } from "lucide-react";
+import { BarChart3, FileText, LayoutDashboard, LogOut, Menu, Monitor, Settings, Sliders, X } from "lucide-react";
 import { useAuthStore, useAuthHydration } from "@/stores/authStore";
+import { AlertBadge } from "@/components/admin/AlertBadge";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "仪表盘" },
   { href: "/admin/models", icon: Settings, label: "模型配置" },
-  { href: "/admin/users", icon: Users, label: "用户管理" },
+  { href: "/admin/usage", icon: BarChart3, label: "用量监控" },
   { href: "/admin/logs", icon: FileText, label: "请求日志" },
+  { href: "/admin/settings", icon: Sliders, label: "系统设置" },
+  { href: "/admin/terminals", icon: Monitor, label: "终端管理" },
 ];
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/v1";
 
 export default function AdminLayout({
   children,
@@ -29,6 +35,7 @@ export default function AdminLayout({
     if (!hydrated) return;
 
     if (!token) {
+      setChecking(false);
       router.push("/admin");
       return;
     }
@@ -36,7 +43,7 @@ export default function AdminLayout({
     // Verify admin status
     const verifyAdmin = async () => {
       try {
-        const response = await fetch("http://localhost:8000/v1/auth/me", {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         
@@ -67,12 +74,22 @@ export default function AdminLayout({
     router.push("/admin");
   };
 
+  // 登录页不需要 admin layout
+  if (pathname === "/admin") {
+    return <>{children}</>;
+  }
+
   if (!hydrated || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-gray-500">加载中...</div>
       </div>
     );
+  }
+
+  // 未登录时重定向到登录页（非登录页才执行）
+  if (!token) {
+    return null;
   }
 
   return (
@@ -150,6 +167,9 @@ export default function AdminLayout({
           <h1 className="ml-4 lg:ml-0 font-semibold text-gray-900">
             {navItems.find((item) => item.href === pathname)?.label || "管理后台"}
           </h1>
+          <div className="ml-auto">
+            <AlertBadge token={token} />
+          </div>
         </header>
 
         {/* Page content */}
