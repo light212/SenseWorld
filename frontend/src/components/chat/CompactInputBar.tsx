@@ -21,7 +21,11 @@ interface CompactInputBarProps {
 }
 
 // P1-1: 麦克风权限状态
+<<<<<<< Updated upstream
 type MicPermissionState = "prompt" | "granted" | "denied" | "unknown";
+=======
+type MicPermissionState = "prompt" | "granted" | "denied" | "no-device" | "unknown";
+>>>>>>> Stashed changes
 
 export function CompactInputBar({
   onTextSend,
@@ -138,12 +142,31 @@ export function CompactInputBar({
       
       // 判断是用户拒绝还是其他错误
       const err = error as Error;
+<<<<<<< Updated upstream
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         setMicPermission("denied");
         setShowMicGuide(true);
       } else {
         // 其他错误（如无麦克风设备）
         toast.error("无法访问麦克风，请检查设备连接");
+=======
+      console.log("Error name:", err.name, "Message:", err.message);
+      
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setMicPermission("denied");
+        setShowMicGuide(true);
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        // 找不到麦克风设备
+        setMicPermission("no-device");
+        setShowMicGuide(true);
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        // 麦克风被占用
+        toast.error("麦克风被其他应用占用，请关闭后重试");
+      } else {
+        // 其他错误
+        toast.error("无法启动麦克风：" + (err.message || "未知错误"));
+        setShowMicGuide(true);
+>>>>>>> Stashed changes
       }
     }
   }, []);
@@ -300,6 +323,143 @@ export function CompactInputBar({
 
   // P1-1: 麦克风引导弹窗
   if (showMicGuide && micPermission !== "granted") {
+<<<<<<< Updated upstream
+=======
+    // 无麦克风设备或系统权限未开启
+    if (micPermission === "no-device") {
+      return (
+        <div className="px-4 py-6 border-t border-gray-200 bg-white">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center">
+              <MicOff className="w-8 h-8 text-orange-500" />
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-1">无法访问麦克风</h3>
+              <p className="text-sm text-gray-500 mb-3">
+                请开启系统麦克风权限：
+              </p>
+            </div>
+
+            {/* macOS 系统权限指引 */}
+            <div className="w-full bg-gray-50 rounded-lg p-4 text-left">
+              <p className="text-xs text-gray-500 mb-2 font-medium">macOS 系统：</p>
+              <ol className="text-sm text-gray-600 space-y-2 mb-4">
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">1.</span>
+                  <span>打开「系统设置」→「隐私与安全性」</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">2.</span>
+                  <span>点击左侧「麦克风」</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">3.</span>
+                  <span>开启浏览器（Chrome/Safari/Edge）的访问权限</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">4.</span>
+                  <span>返回此页面并刷新</span>
+                </li>
+              </ol>
+              
+              <p className="text-xs text-gray-500 mb-2 font-medium">Windows 系统：</p>
+              <ol className="text-sm text-gray-600 space-y-2">
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">1.</span>
+                  <span>打开「设置」→「隐私」→「麦克风」</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">2.</span>
+                  <span>开启「允许应用访问麦克风」</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">3.</span>
+                  <span>确保浏览器在允许列表中</span>
+                </li>
+              </ol>
+            </div>
+            
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => window.location.reload()}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full font-medium hover:opacity-90 transition-opacity"
+              >
+                设置完成，刷新页面
+              </button>
+              
+              <button
+                onClick={() => setShowMicGuide(false)}
+                className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-full font-medium hover:bg-gray-50 transition-colors"
+              >
+                稍后再说
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 权限被拒绝的状态 - 显示详细指引
+    if (micPermission === "denied") {
+      return (
+        <div className="px-4 py-6 border-t border-gray-200 bg-white">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+              <MicOff className="w-8 h-8 text-red-500" />
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-1">麦克风权限被拒绝</h3>
+              <p className="text-sm text-gray-500 mb-3">
+                请按以下步骤开启麦克风权限：
+              </p>
+            </div>
+
+            {/* 浏览器设置指引 */}
+            <div className="w-full bg-gray-50 rounded-lg p-4 text-left">
+              <ol className="text-sm text-gray-600 space-y-2">
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">1.</span>
+                  <span>点击浏览器地址栏左侧的 <span className="inline-flex items-center px-1.5 py-0.5 bg-gray-200 rounded text-xs">🔒</span> 图标</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">2.</span>
+                  <span>找到「麦克风」权限设置</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">3.</span>
+                  <span>选择「允许」或「询问」</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-medium text-gray-900">4.</span>
+                  <span>刷新页面后重试</span>
+                </li>
+              </ol>
+            </div>
+            
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => window.location.reload()}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full font-medium hover:opacity-90 transition-opacity"
+              >
+                刷新页面
+              </button>
+              
+              <button
+                onClick={() => setShowMicGuide(false)}
+                className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-full font-medium hover:bg-gray-50 transition-colors"
+              >
+                稍后再说
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 首次授权提示
+>>>>>>> Stashed changes
     return (
       <div className="px-4 py-6 border-t border-gray-200 bg-white">
         <div className="flex flex-col items-center text-center gap-4">
@@ -314,12 +474,15 @@ export function CompactInputBar({
             </p>
           </div>
           
+<<<<<<< Updated upstream
           {micPermission === "denied" && (
             <p className="text-sm text-red-500">
               麦克风权限被拒绝，请在浏览器设置中允许访问
             </p>
           )}
           
+=======
+>>>>>>> Stashed changes
           <button
             onClick={startRecording}
             disabled={disabled}
