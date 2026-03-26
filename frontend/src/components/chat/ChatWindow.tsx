@@ -2,9 +2,10 @@
 
 /**
  * Main chat window component integrating all chat functionality.
+ * 支持流式 LLM 响应 + 分段 TTS
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { MessageList } from "./MessageList";
 import { CompactInputBar } from "./CompactInputBar";
 import { useConversationStore } from "@/stores/conversationStore";
@@ -27,12 +28,52 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     addMessage,
     setMessages,
     setIsSendingMessage,
+    updateStreamingContent,
+    clearStreamingContent,
+    setIsStreaming,
   } = useConversationStore();
 
   const { token } = useAuthStore();
+  const audioQueueRef = useRef<string[]>([]);
+  const isPlayingRef = useRef(false);
 
   // 使用传入的 conversationId 或 store 中的
   const activeConversationId = conversationId || currentConversationId;
+
+  // 播放音频队列
+  const playNextAudio = useCallback(async () => {
+    if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
+    
+    isPlayingRef.current = true;
+    const audioBase64 = audioQueueRef.current.shift();
+    
+    if (audioBase64) {
+      try {
+        const audioData = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
+        const blob = new Blob([audioData], { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          isPlayingRef.current = false;
+          playNextAudio();
+        };
+        
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          isPlayingRef.current = false;
+          playNextAudio();
+        };
+        
+        await audio.play();
+      } catch (error) {
+        console.error("Audio playback error:", error);
+        isPlayingRef.current = false;
+        playNextAudio();
+      }
+    }
+  }, []);
 
   // 加载历史消息 - 当会话变化时重新加载
   useEffect(() => {
@@ -69,6 +110,105 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     loadMessages();
   }, [activeConversationId, token, setMessages]);
 
+  // 流式聊天请求
+  const streamChat = useCallback(async (text: string) => {
+    if (!activeConversationId || !token) return;
+
+    // 清空流式内容，开始流式状态
+    clearStreamingContent();
+    setIsStreaming(true);
+    audioQueueRef.current = [];
+
+    let fullContent = "";
+    let messageId = "";
+
+    try {
+      const response = await fetch("http://localhost:8000/v1/chat/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversation_id: activeConversationId,
+          content: text,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Stream request failed");
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No reader");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            const eventType = line.slice(7).trim();
+            continue;
+          }
+          
+          if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6).trim();
+            try {
+              const data = JSON.parse(dataStr);
+              
+              if (data.content) {
+                // 文本片段
+                fullContent += data.content;
+                updateStreamingContent(data.content);
+              }
+              
+              if (data.audio_base64) {
+                // 音频片段
+                audioQueueRef.current.push(data.audio_base64);
+                playNextAudio();
+              }
+              
+              if (data.message_id) {
+                // 完成事件
+                messageId = data.message_id;
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+
+      // 添加完整的 AI 消息
+      if (fullContent) {
+        const aiMessage: Message = {
+          id: messageId || crypto.randomUUID(),
+          conversationId: activeConversationId,
+          role: "assistant",
+          content: fullContent,
+          createdAt: new Date().toISOString(),
+          hasAudio: true,
+        };
+        addMessage(aiMessage);
+      }
+
+    } catch (error) {
+      console.error("Stream chat failed:", error);
+    } finally {
+      setIsStreaming(false);
+      clearStreamingContent();
+      setIsSendingMessage(false);
+    }
+  }, [activeConversationId, token, updateStreamingContent, clearStreamingContent, setIsStreaming, addMessage, setIsSendingMessage, playNextAudio]);
+
   const handleVoiceRecordingComplete = useCallback(
     async (blob: Blob, duration: number) => {
       if (!activeConversationId) return;
@@ -95,6 +235,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
         if (!transcribedText || transcribedText.trim() === "") {
           console.warn("Empty ASR result");
+          setIsSendingMessage(false);
           return;
         }
 
@@ -114,42 +255,15 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         };
         addMessage(userMessage);
 
-        // 3. Call chat API
-        const chatResponse = await fetch("http://localhost:8000/v1/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            conversation_id: activeConversationId,
-            content: transcribedText,
-          }),
-        });
+        // 3. 流式调用 chat API
+        await streamChat(transcribedText);
 
-        if (!chatResponse.ok) {
-          throw new Error("Chat request failed");
-        }
-
-        const chatData = await chatResponse.json();
-
-        // 4. Add AI response
-        const aiMessage: Message = {
-          id: chatData.id,
-          conversationId: activeConversationId,
-          role: "assistant",
-          content: chatData.content,
-          createdAt: chatData.created_at,
-          hasAudio: chatData.has_audio,
-        };
-        addMessage(aiMessage);
       } catch (error) {
         console.error("Failed to process voice message:", error);
-      } finally {
         setIsSendingMessage(false);
       }
     },
-    [activeConversationId, token, addMessage, setIsSendingMessage]
+    [activeConversationId, addMessage, setIsSendingMessage, streamChat]
   );
 
   const handleTextSend = useCallback(
@@ -158,55 +272,22 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       
       setIsSendingMessage(true);
 
-      try {
-        // Add user message to UI immediately
-        const userMessage: Message = {
-          id: crypto.randomUUID(),
-          conversationId: activeConversationId,
-          role: "user",
-          content: text,
-          createdAt: new Date().toISOString(),
-          hasAudio: false,
-          metadata: { inputType: "text" },
-        };
-        addMessage(userMessage);
+      // Add user message to UI immediately
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        conversationId: activeConversationId,
+        role: "user",
+        content: text,
+        createdAt: new Date().toISOString(),
+        hasAudio: false,
+        metadata: { inputType: "text" },
+      };
+      addMessage(userMessage);
 
-        // Call backend API
-        const response = await fetch("http://localhost:8000/v1/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            conversation_id: activeConversationId,
-            content: text,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Chat request failed");
-        }
-
-        const data = await response.json();
-
-        // Add AI response
-        const aiMessage: Message = {
-          id: data.id,
-          conversationId: activeConversationId,
-          role: "assistant",
-          content: data.content,
-          createdAt: data.created_at,
-          hasAudio: data.has_audio,
-        };
-        addMessage(aiMessage);
-      } catch (error) {
-        console.error("Failed to send message:", error);
-      } finally {
-        setIsSendingMessage(false);
-      }
+      // 流式调用 chat API
+      await streamChat(text);
     },
-    [activeConversationId, token, addMessage, setIsSendingMessage]
+    [activeConversationId, addMessage, setIsSendingMessage, streamChat]
   );
 
   return (
