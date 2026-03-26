@@ -2,7 +2,8 @@
  * API client for communicating with the backend.
  */
 
-import type { ApiError, AuthResponse, LoginRequest, RegisterRequest, User } from "@/types";
+import type { ApiError as ApiErrorType, AuthResponse, LoginRequest, RegisterRequest, User } from "@/types";
+import { ApiError, logger, measurePerformance, getErrorMessage } from "@/lib/errorHandling";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/v1";
 
@@ -32,24 +33,66 @@ class ApiClient {
       (headers as Record<string, string>)["Authorization"] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
+    return measurePerformance(`API ${options.method || "GET"} ${endpoint}`, async () => {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers,
+        });
+
+        // 获取 trace_id 用于调试
+        const traceId = response.headers.get("X-Trace-ID") || undefined;
+
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => ({
+            error: { message: "请求失败", code: "UNKNOWN_ERROR" }
+          }));
+          
+          // 使用新的 ApiError 类
+          if (errorBody.error) {
+            throw new ApiError(
+              errorBody.error.message || "请求失败",
+              errorBody.error.code || "UNKNOWN_ERROR",
+              response.status,
+              traceId,
+              errorBody.error.details
+            );
+          }
+          
+          // 兼容旧的错误格式
+          const legacyError: ApiErrorType = errorBody;
+          throw new ApiError(
+            legacyError.detail || "请求失败",
+            "UNKNOWN_ERROR",
+            response.status,
+            traceId
+          );
+        }
+
+        // Handle 204 No Content
+        if (response.status === 204) {
+          return {} as T;
+        }
+
+        return response.json();
+      } catch (error) {
+        if (error instanceof ApiError) {
+          logger.warn(`API Error: ${error.code} - ${error.message}`, { 
+            endpoint, 
+            traceId: error.traceId 
+          });
+          throw error;
+        }
+        
+        // 网络错误等
+        logger.error(`API Request failed: ${endpoint}`, error);
+        throw new ApiError(
+          getErrorMessage(error),
+          "NETWORK_ERROR",
+          0
+        );
+      }
     });
-
-    if (!response.ok) {
-      const error: ApiError = await response.json().catch(() => ({
-        detail: "An error occurred",
-      }));
-      throw new Error(error.detail);
-    }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return {} as T;
-    }
-
-    return response.json();
   }
 
   // Auth endpoints
@@ -98,19 +141,38 @@ export async function sendChatMessage(
   token: string,
   data: ChatRequest
 ): Promise<ChatMessageResponse> {
-  const response = await fetch(`${API_BASE_URL}/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
+  return measurePerformance("sendChatMessage", async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      const traceId = response.headers.get("X-Trace-ID") || undefined;
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({ 
+          error: { message: "发送消息失败" } 
+        }));
+        
+        throw new ApiError(
+          errorBody.error?.message || errorBody.detail || "发送消息失败",
+          errorBody.error?.code || "CHAT_ERROR",
+          response.status,
+          traceId
+        );
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      
+      logger.error("sendChatMessage failed", error);
+      throw new ApiError(getErrorMessage(error), "NETWORK_ERROR", 0);
+    }
   });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: "Chat failed" }));
-    throw new Error(error.detail);
-  }
-
-  return response.json();
 }

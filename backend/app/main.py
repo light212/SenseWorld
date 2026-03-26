@@ -2,7 +2,6 @@
 SenseWorld Backend Application
 """
 
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -11,13 +10,13 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.core.database import close_redis
+from app.core.logging import setup_logging, get_logger, get_trace_id
+from app.core.exceptions import AppException, ErrorCode
+from app.core.middleware import RequestTraceMiddleware
 
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# 初始化日志系统
+setup_logging()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -36,6 +35,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# 请求追踪中间件（最先添加，最后执行）
+app.add_middleware(RequestTraceMiddleware)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -46,14 +48,46 @@ app.add_middleware(
 )
 
 
-# Global exception handler
+# 自定义应用异常处理器
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    """处理应用自定义异常"""
+    logger.warning(
+        f"Application error: {exc.code.value} - {exc.message}",
+        extra={"extra_data": {"code": exc.code.value, "details": exc.details}}
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": exc.code.value,
+                "message": exc.message,
+                "details": exc.details,
+                "trace_id": get_trace_id(),
+            }
+        },
+    )
+
+
+# 全局异常处理器（兜底）
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Handle uncaught exceptions."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    trace_id = get_trace_id()
+    logger.error(
+        f"Unhandled exception: {exc}",
+        exc_info=True,
+        extra={"extra_data": {"trace_id": trace_id}}
+    )
     return JSONResponse(
         status_code=500,
-        content={"detail": "An internal error occurred"},
+        content={
+            "error": {
+                "code": ErrorCode.INTERNAL_ERROR.value,
+                "message": "服务器内部错误，请稍后重试",
+                "trace_id": trace_id,
+            }
+        },
     )
 
 

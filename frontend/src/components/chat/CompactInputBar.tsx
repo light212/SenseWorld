@@ -21,11 +21,7 @@ interface CompactInputBarProps {
 }
 
 // P1-1: 麦克风权限状态
-<<<<<<< Updated upstream
-type MicPermissionState = "prompt" | "granted" | "denied" | "unknown";
-=======
 type MicPermissionState = "prompt" | "granted" | "denied" | "no-device" | "unknown";
->>>>>>> Stashed changes
 
 export function CompactInputBar({
   onTextSend,
@@ -142,14 +138,6 @@ export function CompactInputBar({
       
       // 判断是用户拒绝还是其他错误
       const err = error as Error;
-<<<<<<< Updated upstream
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        setMicPermission("denied");
-        setShowMicGuide(true);
-      } else {
-        // 其他错误（如无麦克风设备）
-        toast.error("无法访问麦克风，请检查设备连接");
-=======
       console.log("Error name:", err.name, "Message:", err.message);
       
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
@@ -166,10 +154,9 @@ export function CompactInputBar({
         // 其他错误
         toast.error("无法启动麦克风：" + (err.message || "未知错误"));
         setShowMicGuide(true);
->>>>>>> Stashed changes
       }
     }
-  }, []);
+  }, [toast]);
 
   // P1-3: 停止录音并显示预览
   const stopRecordingAndPreview = useCallback(async () => {
@@ -323,8 +310,6 @@ export function CompactInputBar({
 
   // P1-1: 麦克风引导弹窗
   if (showMicGuide && micPermission !== "granted") {
-<<<<<<< Updated upstream
-=======
     // 无麦克风设备或系统权限未开启
     if (micPermission === "no-device") {
       return (
@@ -459,7 +444,6 @@ export function CompactInputBar({
     }
 
     // 首次授权提示
->>>>>>> Stashed changes
     return (
       <div className="px-4 py-6 border-t border-gray-200 bg-white">
         <div className="flex flex-col items-center text-center gap-4">
@@ -474,15 +458,6 @@ export function CompactInputBar({
             </p>
           </div>
           
-<<<<<<< Updated upstream
-          {micPermission === "denied" && (
-            <p className="text-sm text-red-500">
-              麦克风权限被拒绝，请在浏览器设置中允许访问
-            </p>
-          )}
-          
-=======
->>>>>>> Stashed changes
           <button
             onClick={startRecording}
             disabled={disabled}
