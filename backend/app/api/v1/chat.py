@@ -1,10 +1,12 @@
 """
 Chat API routes for message handling and AI responses.
+支持流式 LLM + WebSocket 流式 TTS。
 """
 
 import json
 import logging
 import uuid
+import base64
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
