@@ -11,6 +11,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Send, Video, Plus, X, RotateCcw, MicOff, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/Toast";
 
 interface CompactInputBarProps {
   onTextSend: (text: string) => void;
@@ -28,6 +29,7 @@ export function CompactInputBar({
   onVideoSelect,
   disabled = false,
 }: CompactInputBarProps) {
+  const toast = useToast();
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -55,19 +57,14 @@ export function CompactInputBar({
   useEffect(() => {
     const checkMicPermission = async () => {
       try {
-        // 检查是否已经引导过
-        const hasGuided = localStorage.getItem("mic_guided");
-        if (hasGuided === "true") {
-          setMicPermission("granted");
-          return;
-        }
-
-        // 使用 Permissions API 检查（如果支持）
+        // 使用 Permissions API 检查真实权限状态（如果支持）
         if (navigator.permissions && navigator.permissions.query) {
           const result = await navigator.permissions.query({ name: "microphone" as PermissionName });
           setMicPermission(result.state as MicPermissionState);
           
-          if (result.state === "prompt") {
+          // 检查是否需要显示引导（首次用户 + 权限未授予）
+          const hasGuided = localStorage.getItem("mic_guided");
+          if (result.state === "prompt" && hasGuided !== "true") {
             setShowMicGuide(true);
           }
           
@@ -77,11 +74,16 @@ export function CompactInputBar({
             if (result.state === "granted") {
               setShowMicGuide(false);
               localStorage.setItem("mic_guided", "true");
+            } else if (result.state === "denied") {
+              setShowMicGuide(true);
             }
           };
+        } else {
+          // 浏览器不支持 Permissions API，设为 unknown
+          setMicPermission("unknown");
         }
       } catch (error) {
-        console.log("Permissions API not supported");
+        console.log("Permissions API not supported or error:", error);
         setMicPermission("unknown");
       }
     };
@@ -101,9 +103,10 @@ export function CompactInputBar({
     };
   }, [voicePreview?.audioUrl]);
 
-  // 开始录音
+  // 开始录音（带权限处理）
   const startRecording = useCallback(async () => {
     try {
+      // 请求麦克风权限并获取流
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
       // 权限已获取
@@ -130,10 +133,18 @@ export function CompactInputBar({
       timerRef.current = setInterval(() => {
         setRecordingDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
       }, 100);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to start recording:", error);
-      setMicPermission("denied");
-      setShowMicGuide(true);
+      
+      // 判断是用户拒绝还是其他错误
+      const err = error as Error;
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setMicPermission("denied");
+        setShowMicGuide(true);
+      } else {
+        // 其他错误（如无麦克风设备）
+        toast.error("无法访问麦克风，请检查设备连接");
+      }
     }
   }, []);
 
@@ -239,7 +250,7 @@ export function CompactInputBar({
     const finalText = text.trim() || voicePreview.transcription;
     
     if (!finalText) {
-      alert("请输入或确认文字内容");
+      toast.warning("请输入或确认文字内容");
       return;
     }
     

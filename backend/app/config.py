@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: str = "postgresql+psycopg://user:password@localhost:5432/senseworld"
+    database_url: str = "mysql+aiomysql://user:password@localhost:3306/senseworld"
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
