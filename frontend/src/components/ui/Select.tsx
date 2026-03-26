@@ -27,9 +27,23 @@ export function Select({
   size = "md",
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
+
+  // 计算下拉方向
+  const calculateDropDirection = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const dropdownHeight = Math.min(options.length * 36 + 8, 248); // 每项约36px + padding
+    
+    // 如果下方空间不足且上方空间更多，则向上展开
+    setDropUp(spaceBelow < dropdownHeight && spaceAbove > spaceBelow);
+  }, [options.length]);
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -51,12 +65,19 @@ export function Select({
     setIsOpen(false);
   };
 
+  const handleToggle = () => {
+    if (!isOpen) {
+      calculateDropDirection();
+    }
+    setIsOpen(!isOpen);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       setIsOpen(false);
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      setIsOpen(!isOpen);
+      handleToggle();
     } else if (e.key === "ArrowDown" && isOpen) {
       e.preventDefault();
       const currentIdx = options.findIndex((opt) => opt.value === value);
@@ -73,8 +94,9 @@ export function Select({
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         onKeyDown={handleKeyDown}
         className={cn(
           "w-full flex items-center justify-between gap-2 border border-gray-200 rounded-lg bg-white text-left transition-all duration-150",
@@ -104,10 +126,11 @@ export function Select({
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden",
-            "origin-top transition-all duration-100"
+            "absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+            "transition-all duration-100",
+            dropUp ? "bottom-full mb-1 origin-bottom" : "top-full mt-1 origin-top"
           )}
-          style={{ animation: "selectDropdown 100ms ease-out" }}
+          style={{ animation: dropUp ? "selectDropdownUp 100ms ease-out" : "selectDropdown 100ms ease-out" }}
         >
           <div className="max-h-60 overflow-auto py-1">
             {options.map((option) => (
