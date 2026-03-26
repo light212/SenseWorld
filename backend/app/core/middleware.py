@@ -77,7 +77,8 @@ class RequestTraceMiddleware(BaseHTTPMiddleware):
             # 写入请求日志（跳过健康检查与文档）
             if path not in {"/health", "/docs", "/openapi.json", "/redoc"}:
                 try:
-                    request_type = path.strip("/").split("/")[-1] or "unknown"
+                    # 存储完整的请求类型：方法 + 路径
+                    request_type = f"{method} {path}"
                     conversation_id = request.query_params.get("conversation_id")
                     user_agent = request.headers.get("user-agent")
                     async with async_session_maker() as session:

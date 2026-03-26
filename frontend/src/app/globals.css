@@ -92,3 +92,15 @@ body {
 .glow-sm {
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 }
+
+/* Select dropdown animation */
+@keyframes selectDropdown {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

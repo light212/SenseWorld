@@ -131,26 +131,37 @@ class RequestLogService:
         return result.scalar_one_or_none()
 
     async def get_latency_stats(self, date_range_start, request_type: Optional[str] = None) -> dict:
-        query = select(
-            func.percentile_cont(0.5).within_group(RequestLog.latency_ms),
-            func.percentile_cont(0.95).within_group(RequestLog.latency_ms),
-            func.percentile_cont(0.99).within_group(RequestLog.latency_ms),
-            func.avg(RequestLog.latency_ms),
-            func.min(RequestLog.latency_ms),
-            func.max(RequestLog.latency_ms),
-        ).where(RequestLog.created_at >= date_range_start)
+        """Calculate latency percentiles. MySQL doesn't support percentile_cont, so we fetch data and compute in Python."""
+        query = select(RequestLog.latency_ms).where(RequestLog.created_at >= date_range_start)
 
         if request_type:
             query = query.where(RequestLog.request_type == request_type)
 
+        query = query.order_by(RequestLog.latency_ms)
         result = await self.db.execute(query)
-        p50, p95, p99, avg, min_v, max_v = result.one()
+        latencies = [row[0] for row in result.all()]
+
+        if not latencies:
+            return {
+                "p50": 0,
+                "p95": 0,
+                "p99": 0,
+                "avg": 0.0,
+                "min": 0,
+                "max": 0,
+            }
+
+        n = len(latencies)
+        
+        def percentile(data: list, p: float) -> int:
+            idx = int(p * (len(data) - 1))
+            return int(data[idx])
 
         return {
-            "p50": int(p50 or 0),
-            "p95": int(p95 or 0),
-            "p99": int(p99 or 0),
-            "avg": float(avg or 0),
-            "min": int(min_v or 0),
-            "max": int(max_v or 0),
+            "p50": percentile(latencies, 0.5),
+            "p95": percentile(latencies, 0.95),
+            "p99": percentile(latencies, 0.99),
+            "avg": round(sum(latencies) / n, 2),
+            "min": int(latencies[0]),
+            "max": int(latencies[-1]),
         }
