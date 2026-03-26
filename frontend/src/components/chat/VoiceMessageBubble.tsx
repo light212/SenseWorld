@@ -1,19 +1,15 @@
 "use client";
 
-/**
- * Voice message bubble component - 类似微信语音条样式
- */
-
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface VoiceMessageBubbleProps {
   duration: number; // 毫秒
-  audioUrl?: string; // Blob URL 或后端 URL
-  audioBlob?: Blob; // 原始 Blob 数据
+  audioUrl?: string;
+  audioBlob?: Blob;
   isUser?: boolean;
-  transcription?: string; // 转写文字
+  transcription?: string;
   className?: string;
 }
 
@@ -30,7 +26,6 @@ export function VoiceMessageBubble({
   const [currentUrl, setCurrentUrl] = useState<string | null>(audioUrl || null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 如果传入的是 Blob，创建 Blob URL
   useEffect(() => {
     if (audioBlob && !audioUrl) {
       const url = URL.createObjectURL(audioBlob);
@@ -40,10 +35,10 @@ export function VoiceMessageBubble({
   }, [audioBlob, audioUrl]);
 
   const formatDuration = (ms: number): string => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const handlePlay = () => {
@@ -72,7 +67,6 @@ export function VoiceMessageBubble({
     }
   };
 
-  // 清理
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -82,73 +76,93 @@ export function VoiceMessageBubble({
     };
   }, []);
 
+  // 计算气泡宽度（基于时长）
+  const bubbleWidth = Math.min(140 + (duration / 1000) * 4, 260);
+
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       {/* 语音条 */}
-      <button
-        onClick={handlePlay}
-        aria-label={isPlaying ? "暂停播放" : "播放语音"}
+      <div
         className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-2xl transition-all duration-200",
+          "relative flex items-center gap-3 px-3 py-2 rounded-2xl",
           isUser
-            ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
-            : "bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 shadow-sm",
-          isPlaying && "ring-2 ring-blue-300"
+            ? "bg-blue-500 text-white"
+            : "bg-gray-100 text-gray-700 border border-gray-200"
         )}
-        style={{
-          minWidth: `${Math.min(80 + duration / 100, 220)}px`,
-          maxWidth: "220px",
-        }}
+        style={{ width: `${bubbleWidth}px` }}
       >
-        {/* 播放图标 */}
-        <div className="flex-shrink-0 w-5 h-5">
-          {isPlaying ? (
-            <Pause className="w-5 h-5" />
-          ) : (
-            <Play className="w-5 h-5" />
+        {/* 播放按钮 */}
+        <button
+          onClick={handlePlay}
+          aria-label={isPlaying ? "暂停" : "播放"}
+          className={cn(
+            "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
+            "transition-transform active:scale-95",
+            isUser
+              ? "bg-white text-blue-500"
+              : "bg-white text-gray-600 shadow-sm"
           )}
-        </div>
+        >
+          {isPlaying ? (
+            <Pause className="w-4 h-4" />
+          ) : (
+            <Play className="w-4 h-4 ml-0.5" />
+          )}
+        </button>
 
-        {/* 声波动画 */}
-        <div className="flex-1 flex items-center gap-0.5 h-5">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                "flex-1 rounded-full transition-all duration-150",
-                isUser ? "bg-white/70" : "bg-gray-400"
-              )}
-              style={{
-                height: isPlaying
-                  ? `${6 + Math.sin(progress / 10 + i) * 8}px`
-                  : `${3 + i * 2}px`,
-              }}
-            />
-          ))}
+        {/* 声波区域 */}
+        <div className="flex-1 flex items-center justify-center h-8">
+          <div className="flex items-center gap-[3px] h-full">
+            {[...Array(7)].map((_, i) => {
+              // 静态时的高度模式
+              const staticHeights = [12, 18, 24, 28, 24, 18, 12];
+              // 播放时的动态高度
+              const dynamicHeight = isPlaying
+                ? 8 + Math.sin(progress / 8 + i * 0.8) * 12
+                : staticHeights[i];
+              
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    "w-[3px] rounded-full transition-all duration-100",
+                    isUser ? "bg-white/80" : "bg-gray-400"
+                  )}
+                  style={{ height: `${dynamicHeight}px` }}
+                />
+              );
+            })}
+          </div>
         </div>
 
         {/* 时长 */}
-        <span className="flex-shrink-0 text-sm font-medium tabular-nums">
+        <span className={cn(
+          "flex-shrink-0 text-sm font-medium tabular-nums",
+          isUser ? "text-white/90" : "text-gray-500"
+        )}>
           {formatDuration(duration)}
         </span>
-      </button>
 
-      {/* 进度条（播放时显示） */}
-      {isPlaying && (
-        <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={cn(
-              "h-full transition-all",
-              isUser ? "bg-white/60" : "bg-blue-400"
-            )}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
+        {/* 进度条（叠加在底部） */}
+        {isPlaying && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-2xl">
+            <div
+              className={cn(
+                "h-full transition-all duration-100",
+                isUser ? "bg-white/40" : "bg-blue-400/60"
+              )}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+      </div>
 
-      {/* 转写文字 - 显示在气泡内下方 */}
+      {/* 转写文字 */}
       {transcription && (
-        <p className="text-xs text-gray-500 mt-0.5 px-1">
+        <p className={cn(
+          "text-xs px-1",
+          isUser ? "text-blue-600" : "text-gray-500"
+        )}>
           "{transcription}"
         </p>
       )}

@@ -1,11 +1,15 @@
 "use client";
 
-/**
- * Audio player component for playing AI voice responses.
- */
+import { useState, useRef, useEffect } from "react";
+import { Play, Pause, Square } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-import { useAudioPlayer } from "@/hooks/useAudioPlayer";
-import { cn, formatDuration } from "@/lib/utils";
+// 格式化时长
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 interface AudioPlayerProps {
   src?: string;
@@ -18,25 +22,61 @@ export function AudioPlayer({
   autoPlay = false,
   className,
 }: AudioPlayerProps) {
-  const {
-    isPlaying,
-    isPaused,
-    currentTime,
-    duration,
-    play,
-    pause,
-    resume,
-    stop,
-  } = useAudioPlayer();
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
 
-  const handlePlayPause = async () => {
-    if (isPlaying && !isPaused) {
-      pause();
-    } else if (isPaused) {
-      resume();
-    } else if (src) {
-      await play(src);
+  useEffect(() => {
+    if (src) {
+      audioRef.current = new Audio(src);
+      audioRef.current.onloadedmetadata = () => {
+        setDuration(audioRef.current?.duration || 0);
+      };
+      audioRef.current.ontimeupdate = () => {
+        setCurrentTime(audioRef.current?.currentTime || 0);
+      };
+      audioRef.current.onended = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      };
     }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [src]);
+
+  const handlePlayPause = () => {
+    if (!audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleStop = () => {
+    if (!audioRef.current) return;
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !progressRef.current) return;
+    
+    const rect = progressRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const newTime = (clickX / rect.width) * duration;
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -46,61 +86,84 @@ export function AudioPlayer({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 p-2 bg-gray-100 rounded-lg",
+        "flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 shadow-sm",
         className
       )}
     >
+      {/* 播放按钮 */}
       <button
         onClick={handlePlayPause}
-        className="p-2 rounded-full bg-white hover:bg-gray-50 shadow-sm"
+        className={cn(
+          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+          "bg-blue-500 text-white",
+          "hover:bg-blue-600 transition-colors",
+          "active:scale-95 transition-transform"
+        )}
+        aria-label={isPlaying ? "暂停" : "播放"}
       >
-        {isPlaying && !isPaused ? (
-          <svg
-            className="w-4 h-4 text-primary-600"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-          </svg>
+        {isPlaying ? (
+          <Pause className="w-5 h-5" />
         ) : (
-          <svg
-            className="w-4 h-4 text-primary-600"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path d="M8 5v14l11-7z" />
-          </svg>
+          <Play className="w-5 h-5 ml-0.5" />
         )}
       </button>
 
-      <div className="flex-1">
-        <div className="h-1 bg-gray-300 rounded-full overflow-hidden">
+      {/* 声波 + 进度条 */}
+      <div className="flex-1 flex flex-col gap-1.5">
+        {/* 声波动画 */}
+        <div className="flex items-center gap-[2px] h-4">
+          {[...Array(20)].map((_, i) => {
+            const dynamicHeight = isPlaying
+              ? 4 + Math.sin(currentTime * 3 + i * 0.5) * 6
+              : 4 + Math.sin(i * 0.4) * 4;
+            return (
+              <div
+                key={i}
+                className={cn(
+                  "w-[2px] rounded-full transition-all duration-75",
+                  i / 20 < progress / 100
+                    ? "bg-blue-500"
+                    : "bg-gray-300"
+                )}
+                style={{ height: `${dynamicHeight}px` }}
+              />
+            );
+          })}
+        </div>
+
+        {/* 进度条（可点击） */}
+        <div
+          ref={progressRef}
+          onClick={handleProgressClick}
+          className="h-1.5 bg-gray-200 rounded-full overflow-hidden cursor-pointer group"
+        >
           <div
-            className="h-full bg-primary-500 transition-all duration-100"
+            className="h-full bg-blue-500 relative transition-all duration-100"
             style={{ width: `${progress}%` }}
-          />
+          >
+            {/* 拖动点 */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
         </div>
       </div>
 
-      <span className="text-xs text-gray-500 min-w-[40px]">
-        {formatDuration(currentTime)} / {formatDuration(duration)}
-      </span>
+      {/* 时间 */}
+      <div className="flex-shrink-0 flex items-center gap-2">
+        <span className="text-sm text-gray-500 font-medium tabular-nums min-w-[70px] text-right">
+          {formatDuration(currentTime)} / {formatDuration(duration)}
+        </span>
 
-      {isPlaying && (
-        <button
-          onClick={stop}
-          className="p-1 text-gray-400 hover:text-gray-600"
-          title="停止"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="currentColor"
-            viewBox="0 0 24 24"
+        {/* 停止按钮（播放时显示） */}
+        {isPlaying && (
+          <button
+            onClick={handleStop}
+            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="停止"
           >
-            <rect x="6" y="6" width="12" height="12" />
-          </svg>
-        </button>
-      )}
+            <Square className="w-4 h-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
