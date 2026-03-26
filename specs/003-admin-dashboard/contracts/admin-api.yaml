@@ -1,0 +1,804 @@
+openapi: 3.1.0
+info:
+  title: SenseWorld Admin API
+  description: 后台管理系统 API 接口规范
+  version: 1.0.0
+  contact:
+    name: SenseWorld Team
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: models
+    description: 模型配置管理
+  - name: usage
+    description: 用量监控
+  - name: logs
+    description: 请求日志
+  - name: settings
+    description: 系统设置
+  - name: alerts
+    description: 告警通知
+
+paths:
+  # ==================== Model Configuration ====================
+  /admin/models:
+    get:
+      tags: [models]
+      summary: 获取模型配置列表
+      operationId: listModelConfigs
+      parameters:
+        - name: model_type
+          in: query
+          schema:
+            type: string
+            enum: [llm, asr, tts]
+        - name: terminal_type
+          in: query
+          schema:
+            type: string
+            enum: [all, web, ios, android, miniprogram]
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModelConfig'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags: [models]
+      summary: 创建模型配置
+      operationId: createModelConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelConfigCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelConfig'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/models/{config_id}:
+    get:
+      tags: [models]
+      summary: 获取单个模型配置
+      operationId: getModelConfig
+      parameters:
+        - $ref: '#/components/parameters/ConfigId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelConfig'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [models]
+      summary: 更新模型配置
+      operationId: updateModelConfig
+      parameters:
+        - $ref: '#/components/parameters/ConfigId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelConfigUpdate'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelConfig'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [models]
+      summary: 删除模型配置
+      operationId: deleteModelConfig
+      parameters:
+        - $ref: '#/components/parameters/ConfigId'
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/models/{config_id}/set-default:
+    post:
+      tags: [models]
+      summary: 设为默认模型
+      operationId: setDefaultModel
+      parameters:
+        - $ref: '#/components/parameters/ConfigId'
+      responses:
+        '200':
+          description: 设置成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelConfig'
+
+  # ==================== Usage Statistics ====================
+  /admin/usage/summary:
+    get:
+      tags: [usage]
+      summary: 获取用量汇总
+      operationId: getUsageSummary
+      parameters:
+        - $ref: '#/components/parameters/DateRange'
+        - name: model_type
+          in: query
+          schema:
+            type: string
+            enum: [llm, asr, tts]
+        - name: terminal_type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageSummary'
+
+  /admin/usage/trends:
+    get:
+      tags: [usage]
+      summary: 获取用量趋势数据
+      operationId: getUsageTrends
+      parameters:
+        - $ref: '#/components/parameters/DateRange'
+        - name: granularity
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week]
+            default: day
+        - name: model_type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UsageTrendPoint'
+
+  /admin/usage/by-model:
+    get:
+      tags: [usage]
+      summary: 按模型分组的用量统计
+      operationId: getUsageByModel
+      parameters:
+        - $ref: '#/components/parameters/DateRange'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModelUsageStats'
+
+  # ==================== Request Logs ====================
+  /admin/logs:
+    get:
+      tags: [logs]
+      summary: 查询请求日志
+      operationId: listRequestLogs
+      parameters:
+        - $ref: '#/components/parameters/DateRange'
+        - name: conversation_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: trace_id
+          in: query
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: 筛选状态 (success/error)
+          schema:
+            type: string
+            enum: [success, error]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestLogPage'
+
+  /admin/logs/{log_id}:
+    get:
+      tags: [logs]
+      summary: 获取日志详情
+      operationId: getRequestLog
+      parameters:
+        - name: log_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestLogDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/logs/latency-stats:
+    get:
+      tags: [logs]
+      summary: 获取延迟统计 (P50/P95/P99)
+      operationId: getLatencyStats
+      parameters:
+        - $ref: '#/components/parameters/DateRange'
+        - name: request_type
+          in: query
+          schema:
+            type: string
+            enum: [chat, asr, tts]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatencyStats'
+
+  # ==================== System Settings ====================
+  /admin/settings:
+    get:
+      tags: [settings]
+      summary: 获取所有系统设置
+      operationId: listSettings
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SystemSetting'
+
+  /admin/settings/{key}:
+    get:
+      tags: [settings]
+      summary: 获取单个设置
+      operationId: getSetting
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSetting'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [settings]
+      summary: 更新设置
+      operationId: updateSetting
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemSettingUpdate'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSetting'
+
+  # ==================== Alerts ====================
+  /admin/alerts:
+    get:
+      tags: [alerts]
+      summary: 获取告警列表
+      operationId: listAlerts
+      parameters:
+        - name: is_read
+          in: query
+          schema:
+            type: boolean
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [cost_exceeded, error_spike, config_change]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertPage'
+
+  /admin/alerts/unread-count:
+    get:
+      tags: [alerts]
+      summary: 获取未读告警数量
+      operationId: getUnreadAlertCount
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /admin/alerts/{alert_id}/read:
+    post:
+      tags: [alerts]
+      summary: 标记告警已读
+      operationId: markAlertRead
+      parameters:
+        - name: alert_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 成功
+
+  /admin/alerts/read-all:
+    post:
+      tags: [alerts]
+      summary: 标记所有告警已读
+      operationId: markAllAlertsRead
+      responses:
+        '200':
+          description: 成功
+
+components:
+  parameters:
+    ConfigId:
+      name: config_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    DateRange:
+      name: date_range
+      in: query
+      description: 时间范围
+      schema:
+        type: string
+        enum: [today, week, month, custom]
+        default: week
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: 未认证
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: 无权限 (需要管理员角色)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: ADMIN_001
+        message:
+          type: string
+          example: Model config not found
+        details:
+          type: object
+
+    ModelConfig:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        model_type:
+          type: string
+          enum: [llm, asr, tts]
+        model_name:
+          type: string
+        provider:
+          type: string
+        api_key_masked:
+          type: string
+          description: 掩码后的 API Key (sk-****1234)
+        config:
+          type: object
+        price_per_1k_input_tokens:
+          type: number
+        price_per_1k_output_tokens:
+          type: number
+        is_default:
+          type: boolean
+        terminal_type:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ModelConfigCreate:
+      type: object
+      required: [model_type, model_name, provider]
+      properties:
+        model_type:
+          type: string
+          enum: [llm, asr, tts]
+        model_name:
+          type: string
+        provider:
+          type: string
+        api_key:
+          type: string
+          description: 明文 API Key (存储时加密)
+        config:
+          type: object
+          default: {}
+        price_per_1k_input_tokens:
+          type: number
+          default: 0
+        price_per_1k_output_tokens:
+          type: number
+          default: 0
+        is_default:
+          type: boolean
+          default: false
+        terminal_type:
+          type: string
+          default: all
+        is_active:
+          type: boolean
+          default: true
+
+    ModelConfigUpdate:
+      type: object
+      properties:
+        model_name:
+          type: string
+        provider:
+          type: string
+        api_key:
+          type: string
+        config:
+          type: object
+        price_per_1k_input_tokens:
+          type: number
+        price_per_1k_output_tokens:
+          type: number
+        is_default:
+          type: boolean
+        terminal_type:
+          type: string
+        is_active:
+          type: boolean
+
+    UsageSummary:
+      type: object
+      properties:
+        total_calls:
+          type: integer
+        total_input_tokens:
+          type: integer
+        total_output_tokens:
+          type: integer
+        total_cost:
+          type: number
+        by_model_type:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              calls:
+                type: integer
+              cost:
+                type: number
+
+    UsageTrendPoint:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        calls:
+          type: integer
+        input_tokens:
+          type: integer
+        output_tokens:
+          type: integer
+        cost:
+          type: number
+
+    ModelUsageStats:
+      type: object
+      properties:
+        model_type:
+          type: string
+        model_name:
+          type: string
+        calls:
+          type: integer
+        input_tokens:
+          type: integer
+        output_tokens:
+          type: integer
+        cost:
+          type: number
+        percentage:
+          type: number
+          description: 占总费用百分比
+
+    RequestLogPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestLog'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        pages:
+          type: integer
+
+    RequestLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        trace_id:
+          type: string
+        conversation_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        request_type:
+          type: string
+        status_code:
+          type: integer
+        latency_ms:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    RequestLogDetail:
+      allOf:
+        - $ref: '#/components/schemas/RequestLog'
+        - type: object
+          properties:
+            asr_latency_ms:
+              type: integer
+            llm_latency_ms:
+              type: integer
+            tts_latency_ms:
+              type: integer
+            request_body:
+              type: object
+            response_body:
+              type: object
+            error_message:
+              type: string
+            ip_address:
+              type: string
+            user_agent:
+              type: string
+
+    LatencyStats:
+      type: object
+      properties:
+        p50:
+          type: integer
+          description: 50th percentile latency (ms)
+        p95:
+          type: integer
+        p99:
+          type: integer
+        avg:
+          type: number
+        min:
+          type: integer
+        max:
+          type: integer
+
+    SystemSetting:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        value:
+          type: string
+        value_type:
+          type: string
+          enum: [string, number, boolean, json]
+        description:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+
+    SystemSettingUpdate:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+
+    AlertPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [cost_exceeded, error_spike, config_change]
+        level:
+          type: string
+          enum: [info, warning, error]
+        title:
+          type: string
+        message:
+          type: string
+        metadata:
+          type: object
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

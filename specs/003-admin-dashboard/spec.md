@@ -5,6 +5,16 @@
 **Status**: Draft  
 **Input**: User description: "为 SenseWorld 多模态 AI 对话平台提供统一的后台管理能力，支持模型配置、用量监控、用户管理等功能"
 
+## Clarifications
+
+### Session 2026-03-26
+
+- Q: 管理员权限分级策略？ → A: 简化权限，一期仅区分 admin/user，admin 拥有全部后台权限
+- Q: 配置热更新实现机制？ → A: 数据库轮询，每次请求从 DB/Redis 读取配置，缓存 TTL 5秒
+- Q: 费用估算价格数据来源？ → A: 数据库配置，ModelConfig 增加 price_per_1k_tokens 字段
+- Q: 日志数据存储与清理策略？ → A: 定时任务清理，每日凌晨删除 90 天前数据
+- Q: 告警通知渠道？ → A: 仅站内通知，后台管理界面顶部显示告警 badge
+
 ## Summary
 
 为 SenseWorld 多模态 AI 对话平台构建后台管理系统，使运维人员能够在不修改代码和重启服务的情况下，动态配置 LLM/ASR/TTS 模型参数、监控 API 调用用量和费用、查看请求日志和会话追踪、管理终端配置。系统面向平台管理员和运维人员，提供可视化的配置管理和数据分析能力。
@@ -105,12 +115,12 @@
 - **FR-002**: 系统必须支持 ASR 模型配置（provider、模型名、API Key、语言、采样率）
 - **FR-003**: 系统必须支持 TTS 模型配置（provider、模型名、API Key、音色、语速、音量）
 - **FR-004**: API Key 必须加密存储，界面仅显示部分掩码（如 sk-****1234）
-- **FR-005**: 配置修改必须支持热更新，无需重启服务
+- **FR-005**: 配置修改必须支持热更新（数据库轮询 + 缓存 TTL 5秒），无需重启服务
 
 **用量监控**
 - **FR-006**: 系统必须记录每次模型调用（时间、用户、模型、输入 token、输出 token）
 - **FR-007**: 系统必须提供日/周/月维度的调用统计和费用估算
-- **FR-008**: 系统必须支持费用阈值告警配置
+- **FR-008**: 系统必须支持费用阈值告警配置，告警通过站内通知展示（后台顶部 badge）
 
 **日志观测**
 - **FR-009**: 系统必须记录每次 API 请求（trace_id、时间、用户、模型、状态码、耗时）
@@ -128,12 +138,12 @@
 - **FR-017**: 系统必须支持按终端类型统计用量
 
 **权限控制**
-- **FR-018**: 后台管理系统必须仅限管理员访问
+- **FR-018**: 后台管理系统必须仅限管理员访问（一期简化为 admin/user 二级角色，admin 拥有全部后台权限）
 - **FR-019**: 系统必须记录管理员操作审计日志
 
 ### Key Entities
 
-- **ModelConfig**: 模型配置（provider、model_name、api_key_encrypted、parameters、is_default、terminal_type）
+- **ModelConfig**: 模型配置（provider、model_name、api_key_encrypted、parameters、is_default、terminal_type、**price_per_1k_input_tokens**、**price_per_1k_output_tokens**）
 - **UsageLog**: 用量记录（model_type、model_name、user_id、input_tokens、output_tokens、cost、created_at）
 - **RequestLog**: 请求日志（trace_id、conversation_id、user_id、request_type、status_code、latency_ms、created_at）
 - **SystemSetting**: 系统设置（key、value、description、updated_at）
@@ -148,7 +158,7 @@
 - **SC-003**: 用量统计页面加载时间不超过 3 秒
 - **SC-004**: 日志查询响应时间不超过 5 秒（单次查询最多 1000 条）
 - **SC-005**: API Key 存储满足 AES-256 加密标准
-- **SC-006**: 系统支持保留 90 天的请求日志和用量数据
+- **SC-006**: 系统支持保留 90 天的请求日志和用量数据（通过每日定时任务清理过期数据）
 
 ## Assumptions
 
