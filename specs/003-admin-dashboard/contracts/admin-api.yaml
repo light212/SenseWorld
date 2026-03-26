@@ -369,6 +369,81 @@ paths:
               schema:
                 $ref: '#/components/schemas/SystemSetting'
 
+  # ==================== Terminals ====================
+  /admin/terminals:
+    get:
+      tags: [settings]
+      summary: 获取终端配置列表
+      operationId: listTerminals
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Terminal'
+
+    post:
+      tags: [settings]
+      summary: 创建终端配置
+      operationId: createTerminal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminalCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Terminal'
+
+  /admin/terminals/{terminal_id}:
+    patch:
+      tags: [settings]
+      summary: 更新终端配置
+      operationId: updateTerminal
+      parameters:
+        - name: terminal_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminalUpdate'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Terminal'
+
+    delete:
+      tags: [settings]
+      summary: 删除终端配置
+      operationId: deleteTerminal
+      parameters:
+        - name: terminal_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 删除成功
+
   # ==================== Alerts ====================
   /admin/alerts:
     get:
@@ -755,6 +830,58 @@ components:
       properties:
         value:
           type: string
+
+    Terminal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          example: web
+        name:
+          type: string
+        config_overrides:
+          type: object
+        feature_flags:
+          type: object
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TerminalCreate:
+      type: object
+      required: [type, name]
+      properties:
+        type:
+          type: string
+        name:
+          type: string
+        config_overrides:
+          type: object
+        feature_flags:
+          type: object
+        is_active:
+          type: boolean
+          default: true
+
+    TerminalUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        config_overrides:
+          type: object
+        feature_flags:
+          type: object
+        is_active:
+          type: boolean
 
     AlertPage:
       type: object

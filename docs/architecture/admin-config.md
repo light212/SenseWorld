@@ -91,10 +91,7 @@ Admin API ──写入──► MySQL（持久化）
 
 | Key | 说明 | TTL |
 |-----|------|-----|
-| `config:llm:default` | 默认 LLM 配置 | 1h |
-| `config:asr:default` | 默认 ASR 配置 | 1h |
-| `config:tts:default` | 默认 TTS 配置 | 1h |
-| `config:llm:{terminal}` | 终端专属配置 | 1h |
+| `model_config:{model_type}:{terminal_type}` | 模型配置缓存 | 5s |
 
 ### 配置服务实现
 
@@ -106,9 +103,9 @@ class ConfigService:
         self.db = db
         self.redis = redis
 
-    async def get_model_config(self, model_type: str, terminal: str = "default") -> dict:
+    async def get_model_config(self, model_type: str, terminal: str = "all") -> dict:
         """获取模型配置（优先缓存）"""
-        cache_key = f"config:{model_type}:{terminal}"
+        cache_key = f"model_config:{model_type}:{terminal}"
         
         # 1. 查缓存
         cached = await self.redis.get(cache_key)
@@ -132,13 +129,13 @@ class ConfigService:
             "provider": config.provider,
             **config.config
         }
-        await self.redis.setex(cache_key, 3600, json.dumps(config_dict))
+        await self.redis.setex(cache_key, 5, json.dumps(config_dict))
         
         return config_dict
 
-    async def invalidate_config(self, model_type: str, terminal: str = "default") -> None:
+    async def invalidate_config(self, model_type: str, terminal: str = "all") -> None:
         """使配置缓存失效"""
-        cache_key = f"config:{model_type}:{terminal}"
+        cache_key = f"model_config:{model_type}:{terminal}"
         await self.redis.delete(cache_key)
 ```
 
