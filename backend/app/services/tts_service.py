@@ -1,15 +1,14 @@
 """
-TTS (Text-to-Speech) service using Aliyun DashScope WebSocket API.
-支持 qwen3-tts-flash-realtime 模型的流式调用。
+TTS (Text-to-Speech) service using Aliyun DashScope API.
+使用 qwen3-tts-instruct-flash 模型。
 """
 
-import json
+import os
 import logging
-import asyncio
-import struct
-from typing import AsyncGenerator, Optional
+from typing import Optional
 
-import websockets
+import dashscope
+from dashscope import MultiModalConversation
 
 from app.config import settings
 
@@ -17,13 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class TTSService:
-    """Service for text-to-speech using Aliyun DashScope WebSocket API."""
+    """Service for text-to-speech using Aliyun DashScope API."""
 
     def __init__(self):
-        self.api_key = settings.tts_api_key
-        self.model = settings.tts_model
-        self.default_voice = settings.tts_voice
-        self.ws_url = "wss://dashscope.aliyuncs.com/api-ws/v1/inference/"
+        self.api_key = settings.tts_api_key or os.getenv("DASHSCOPE_API_KEY")
+        self.model = settings.tts_model or "qwen3-tts-instruct-flash"
+        self.default_voice = settings.tts_voice or "Cherry"
+        
+        # 设置 DashScope API URL
+        dashscope.base_http_api_url = 'https://dashscope.aliyuncs.com/api/v1'
 
     async def synthesize(
         self,
@@ -32,180 +33,89 @@ class TTSService:
         speed: float = 1.0,
     ) -> bytes:
         """
-        Convert text to speech using WebSocket.
+        Convert text to speech using DashScope API.
 
         Args:
             text: Text to convert
             voice: Voice to use (Cherry, Ethan, etc.)
-            speed: Speech speed
+            speed: Speech speed (not supported in this model)
 
         Returns:
-            Audio bytes in WAV/PCM format
+            Audio bytes in WAV format
         """
-        audio_chunks = []
+        if not self.api_key:
+            raise ValueError("DASHSCOPE_API_KEY not configured")
+
+        voice = voice or self.default_voice
         
-        async for chunk in self.synthesize_stream(text, voice, speed):
-            audio_chunks.append(chunk)
-        
-        return b"".join(audio_chunks)
+        try:
+            # 调用 DashScope TTS API
+            response = MultiModalConversation.call(
+                model=self.model,
+                api_key=self.api_key,
+                text=text,
+                voice=voice,
+            )
+            
+            if response.status_code != 200:
+                error_msg = response.message or "Unknown error"
+                logger.error(f"TTS API error: {error_msg}")
+                raise Exception(f"TTS API error: {error_msg}")
+            
+            # 获取音频数据
+            audio_data = response.output
+            
+            # 如果返回的是 URL，需要下载
+            if isinstance(audio_data, dict) and 'audio_url' in audio_data:
+                import httpx
+                async with httpx.AsyncClient() as client:
+                    audio_response = await client.get(audio_data['audio_url'])
+                    return audio_response.content
+            
+            # 如果返回的是直接的音频数据
+            if isinstance(audio_data, bytes):
+                return audio_data
+            
+            # 如果返回的是 base64 编码
+            if isinstance(audio_data, dict) and 'audio' in audio_data:
+                import base64
+                return base64.b64decode(audio_data['audio'])
+            
+            logger.warning(f"Unexpected response format: {type(audio_data)}")
+            raise ValueError("Unexpected TTS response format")
+            
+        except Exception as e:
+            logger.error(f"TTS synthesis failed: {e}")
+            raise
 
     async def synthesize_stream(
         self,
         text: str,
         voice: str = None,
         speed: float = 1.0,
-    ) -> AsyncGenerator[bytes, None]:
+    ):
         """
-        Stream text-to-speech synthesis via WebSocket.
-
-        Args:
-            text: Text to convert
-            voice: Voice to use
-            speed: Speech speed
-
-        Yields:
-            Audio chunks (PCM format)
-        """
-        if not self.api_key:
-            raise ValueError("TTS_API_KEY not configured")
-
-        voice = voice or self.default_voice
+        Stream text-to-speech synthesis.
         
-        # 构建请求
-        request_payload = {
-            "header": {
-                "action": "run-task",
-                "streaming": "duplex",
-                "task_id": f"tts-{id(self)}",
-            },
-            "payload": {
-                "task": "tts",
-                "function": "speech_synthesis",
-                "model": self.model,
-                "parameters": {
-                    "voice": voice,
-                    "text_type": "PlainText",
-                    "format": "pcm",
-                    "sample_rate": 16000,
-                    "volume": 50,
-                    "speech_rate": int(speed * 100),
-                },
-                "input": {
-                    "text": text,
-                },
-            },
-        }
-
-        try:
-            # 建立 WebSocket 连接
-            headers = {
-                "Authorization": f"bearer {self.api_key}",
-            }
-            
-            async with websockets.connect(
-                self.ws_url,
-                additional_headers=headers,
-                ping_interval=30,
-                ping_timeout=10,
-            ) as ws:
-                # 发送请求
-                await ws.send(json.dumps(request_payload))
-                
-                # 接收流式音频数据
-                while True:
-                    try:
-                        message = await asyncio.wait_for(
-                            ws.recv(),
-                            timeout=30.0,
-                        )
-                        
-                        # 检查消息类型
-                        if isinstance(message, bytes):
-                            # 二进制音频数据
-                            yield message
-                        elif isinstance(message, str):
-                            # JSON 控制消息
-                            data = json.loads(message)
-                            header = data.get("header", {})
-                            
-                            # 检查是否完成
-                            if header.get("task_status") == "SUCCEEDED":
-                                logger.info("TTS synthesis completed")
-                                break
-                            elif header.get("task_status") == "FAILED":
-                                error_msg = data.get("payload", {}).get("message", "Unknown error")
-                                logger.error(f"TTS failed: {error_msg}")
-                                raise Exception(f"TTS synthesis failed: {error_msg}")
-                            
-                            # 忽略其他控制消息
-                            continue
-                            
-                    except asyncio.TimeoutError:
-                        logger.error("WebSocket receive timeout")
-                        raise TimeoutError("TTS synthesis timeout")
-                    except websockets.exceptions.ConnectionClosed:
-                        logger.info("WebSocket connection closed")
-                        break
-
-        except Exception as e:
-            logger.error(f"TTS WebSocket error: {e}")
-            raise
+        Note: This model doesn't support streaming output,
+        so we just yield the complete audio.
+        """
+        audio_data = await self.synthesize(text, voice, speed)
+        yield audio_data
 
     async def synthesize_stream_with_header(
         self,
         text: str,
         voice: str = None,
         speed: float = 1.0,
-    ) -> AsyncGenerator[bytes, None]:
+    ):
         """
-        流式合成音频，带 WAV 文件头。
+        流式合成音频。
         
-        Yields:
-            首次返回 WAV 头，后续返回 PCM 音频块
+        由于模型不支持真正的流式，直接返回完整音频。
         """
-        # 先生成 WAV 头（16kHz, 16bit, mono）
-        wav_header = self._generate_wav_header(sample_rate=16000, bits=16, channels=1)
-        yield wav_header
-        
-        # 然后流式返回音频数据
-        async for chunk in self.synthesize_stream(text, voice, speed):
-            yield chunk
-
-    def _generate_wav_header(
-        self,
-        sample_rate: int = 16000,
-        bits: int = 16,
-        channels: int = 1,
-    ) -> bytes:
-        """
-        生成 WAV 文件头。
-        
-        由于不知道总大小，使用最大值。
-        """
-        byte_rate = sample_rate * channels * bits // 8
-        block_align = channels * bits // 8
-        
-        # 使用最大值（4GB）
-        data_size = 0xFFFFFFFF - 36
-        
-        header = struct.pack(
-            "<4sI4s4sIHHIIHH4sI",
-            b"RIFF",           # ChunkID
-            data_size,         # ChunkSize (unknown, use max)
-            b"WAVE",           # Format
-            b"fmt ",           # Subchunk1ID
-            16,                # Subchunk1Size (PCM)
-            1,                 # AudioFormat (PCM)
-            channels,          # NumChannels
-            sample_rate,       # SampleRate
-            byte_rate,         # ByteRate
-            block_align,       # BlockAlign
-            bits,              # BitsPerSample
-            b"data",           # Subchunk2ID
-            data_size,         # Subchunk2Size (unknown)
-        )
-        
-        return header
+        audio_data = await self.synthesize(text, voice, speed)
+        yield audio_data
 
 
 # Singleton instance
