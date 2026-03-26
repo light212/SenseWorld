@@ -1,50 +1,74 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: 0.0.0 → 1.0.0
+- Added principles: Schema Change Protocol (NON-NEGOTIABLE)
+- Added sections: Backend Deployment Workflow, Quality Gates
+- Templates requiring updates: ✅ N/A (initial version)
+-->
+
+# SenseWorld Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Schema Change Protocol (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+当任务涉及**数据结构变动**时，MUST 重新执行后台部署流程。数据结构变动包括但不限于：
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- 数据库表结构变更（新增表、新增/修改/删除字段、索引变更）
+- ORM 模型定义变更（SQLAlchemy Model）
+- Pydantic Schema 变更（请求/响应模型）
+- API 契约变更（新增/修改端点、字段）
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**强制执行步骤**：
+1. 生成 Alembic 迁移脚本：`alembic revision --autogenerate -m "描述"`
+2. 检查生成的迁移脚本是否正确
+3. 应用迁移：`alembic upgrade head`
+4. 重启后端服务验证启动无报错
+5. 运行最小导入验证：`python -c "from app.main import app; print('ok')"`
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Incremental Implementation
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+每次任务聚焦单一功能点，避免大范围改动：
+- 一个 PR 只做一件事
+- 改动前先确认影响范围
+- 改动后立即验证
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### III. Observability
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+所有服务 MUST 支持结构化日志，包含 trace_id、user_id 等上下文字段。
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## Backend Deployment Workflow
+
+后台部署流程（数据结构变更时 MUST 执行）：
+
+```bash
+# 1. 安装依赖（如有新增）
+cd backend && pip install -e .
+
+# 2. 生成迁移（如有模型变更）
+alembic revision --autogenerate -m "<描述>"
+
+# 3. 检查迁移脚本
+cat alembic/versions/<最新迁移文件>.py
+
+# 4. 应用迁移
+alembic upgrade head
+
+# 5. 重启服务
+lsof -ti tcp:8000 | xargs -r kill
+/path/to/backend/.venv/bin/uvicorn app.main:app --reload --port 8000 --app-dir /path/to/backend
+```
+
+## Quality Gates
+
+- 后端启动验证 MUST 通过：`from app.main import app` 无报错
+- 数据库迁移 MUST 可正向和反向执行
+- API 文档 MUST 自动生成（FastAPI /docs）
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- 本宪法优先于所有其他实践
+- 修订需记录变更原因和影响
+- 所有任务完成前 MUST 检查是否触发 Schema Change Protocol
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-03-26 | **Last Amended**: 2026-03-26
