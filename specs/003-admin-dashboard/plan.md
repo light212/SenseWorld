@@ -2,6 +2,7 @@
 
 **Branch**: `003-admin-dashboard` | **Date**: 2026-03-26 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/003-admin-dashboard/spec.md`
+**Architecture Review**: Required before implementation starts
 
 ## Summary
 
@@ -81,11 +82,23 @@
 - **容器化**：Docker + Docker Compose (已存在)
 - **部署**：现有 CI/CD 流程
 
-## Constitution Check
+## Architecture Review & Integration
+
+### Architect Involvement Timeline
+
+**Pre-Phase 0 (Before Development Starts)**
+- 架构师需要在开发开始前介入，参与技术方案评审
+- 重点审查架构决策和技术选型
+- 确保与现有系统架构的一致性
+
+**Phase 1 (Ongoing)**
+- 架构师参与关键技术决策
+- 审查数据库设计和API设计
+- 确保架构原则的遵循
+
+### Architecture Review Gates
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
-> **Note**: Constitution 文件为模板状态，未定义具体原则。以下检查基于通用最佳实践：
 
 | Gate | Status | Notes |
 |------|--------|-------|
@@ -93,6 +106,35 @@
 | 测试覆盖 | ✅ PASS | 计划包含 API 集成测试 + 前端单元测试 |
 | 安全合规 | ✅ PASS | API Key 加密存储，admin 权限隔离 |
 | 可观测性 | ✅ PASS | 请求日志、用量监控、trace_id 链路 |
+| 架构一致性 | ✅ PASS | 符合现有 FastAPI + Next.js 架构模式 |
+| 扩展性设计 | ✅ PASS | 支持未来多租户和分布式部署 |
+| 性能设计 | ✅ PASS | 缓存策略、数据库优化、前端性能考虑 |
+
+### Architecture Decisions Log
+
+| Decision | Rationale | Alternatives Considered |
+|----------|-----------|------------------------|
+| 复用现有 FastAPI + Next.js 架构 | 降低学习成本，保持技术栈统一 | 新建独立服务、微服务架构 |
+| DB 轮询 + Redis 缓存热更新 | 简单可靠，满足5秒更新要求 | WebSocket 实时推送、长轮询 |
+| MySQL 存储日志数据 | 利用现有基础设施，简化部署 | 专用日志系统（ELK）、时序数据库 |
+| AES-256 加密 API Key | 满足安全要求，库支持成熟 | 应用层加密、数据库加密 |
+
+### Cross-Cutting Concerns Review
+
+**Security Architecture**
+- [ ] 权限控制架构符合安全最佳实践
+- [ ] 数据加密方案经过安全团队审核
+- [ ] API 安全设计（认证、授权、输入验证）
+
+**Scalability Architecture**
+- [ ] 支持未来用户规模增长
+- [ ] 数据库设计支持大数据量
+- [ ] 缓存策略优化性能
+
+**Operational Architecture**
+- [ ] 监控和告警架构完整
+- [ ] 日志和追踪系统有效
+- [ ] 部署和运维流程清晰
 
 ## Project Structure
 
