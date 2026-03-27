@@ -187,9 +187,10 @@ async def send_message_stream(
         for m in recent_messages
     ]
 
+    # 在 generator 外面获取 LLM 服务（因为 db session 会在返回后关闭）
+    llm_service = await get_llm_service_from_db(db)
+
     async def generate_stream():
-        # 从数据库获取 LLM 配置
-        llm_service = await get_llm_service_from_db(db)
         tts_service = get_tts_service()
 
         full_response = ""
