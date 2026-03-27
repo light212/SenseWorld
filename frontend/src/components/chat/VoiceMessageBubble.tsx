@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAudio, createAudioUrl } from "@/lib/audio-cache";
@@ -14,7 +14,7 @@ interface VoiceMessageBubbleProps {
   className?: string;
 }
 
-export function VoiceMessageBubble({
+export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   messageId,
   duration,
   audioUrl,
@@ -175,4 +175,4 @@ export function VoiceMessageBubble({
       </span>
     </div>
   );
-}
+});

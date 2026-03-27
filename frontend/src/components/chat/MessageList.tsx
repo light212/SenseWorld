@@ -4,7 +4,7 @@
  * Message list component displaying conversation messages.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import { User, Bot } from "lucide-react";
 import type { Message } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
@@ -84,7 +84,7 @@ interface MessageItemProps {
   message: Message;
 }
 
-function MessageItem({ message }: MessageItemProps) {
+const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user";
   const isVoiceMessage = message.metadata?.inputType === "voice";
 
@@ -144,4 +144,4 @@ function MessageItem({ message }: MessageItemProps) {
       </div>
     </div>
   );
-}
+});
