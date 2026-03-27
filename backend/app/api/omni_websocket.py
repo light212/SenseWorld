@@ -1,10 +1,7 @@
 """
 Omni Realtime WebSocket endpoint - bridges frontend to Aliyun DashScope Omni API.
 
-Provides real-time multimodal conversation:
-- Audio input (from user mic)
-- Audio output (AI voice response)
-- Image input (from user camera - future)
+Uses native websocket-client for direct connection to DashScope.
 """
 
 import asyncio
@@ -14,14 +11,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from queue import Queue
-from threading import Thread
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 
 from app.core.database import async_session_maker
 from app.core.security import decode_access_token
 from app.services.omni_realtime_service import create_omni_service, OmniRealtimeService
-from sqlalchemy import select
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -56,7 +52,7 @@ class OmniSession:
     
     Bridges:
     - Frontend WebSocket ↔ Backend
-    - Backend ↔ DashScope Omni WebSocket
+    - Backend ↔ DashScope Omni WebSocket (native)
     """
 
     def __init__(self, websocket: WebSocket, user_id: str):
@@ -65,6 +61,7 @@ class OmniSession:
         self.omni_service: Optional[OmniRealtimeService] = None
         self.event_queue: Queue = Queue()
         self.is_running = False
+        self._forward_task: Optional[asyncio.Task] = None
 
     async def start(self) -> bool:
         """Initialize and connect to Omni service."""
@@ -73,33 +70,22 @@ class OmniSession:
             
             # Register callbacks
             self.omni_service.on("on_open", self._on_omni_open)
-            self.omni_service.on("on_event", self._on_omni_event)
+            self.omni_service.on("on_message", self._on_omni_message)
             self.omni_service.on("on_close", self._on_omni_close)
             self.omni_service.on("on_error", self._on_omni_error)
             
-            # Connect in background thread (dashscope SDK uses sync WebSocket)
+            # Connect (starts background thread)
             self.is_running = True
-            connect_thread = Thread(target=self._connect_omni, daemon=True)
-            connect_thread.start()
+            if not self.omni_service.connect():
+                return False
             
             # Start event forwarding loop
-            asyncio.create_task(self._forward_events())
+            self._forward_task = asyncio.create_task(self._forward_events())
             
             return True
         except Exception as e:
             logger.error(f"Failed to start Omni session: {e}")
             return False
-
-    def _connect_omni(self):
-        """Connect to Omni service (runs in thread)."""
-        try:
-            self.omni_service.connect()
-        except Exception as e:
-            logger.error(f"Omni connect error: {e}")
-            self.event_queue.put({
-                "type": "error",
-                "payload": {"message": str(e)},
-            })
 
     def _on_omni_open(self):
         """Called when Omni WebSocket opens."""
@@ -108,23 +94,22 @@ class OmniSession:
             "payload": {"status": "ready"},
         })
 
-    def _on_omni_event(self, response: dict):
-        """Called when Omni sends an event."""
-        # Forward to frontend
+    def _on_omni_message(self, data: dict):
+        """Called when Omni sends a message."""
         self.event_queue.put({
             "type": "omni_event",
-            "payload": response,
+            "payload": data,
         })
 
     def _on_omni_close(self, code: int, msg: str):
         """Called when Omni WebSocket closes."""
         self.event_queue.put({
             "type": "omni_closed",
-            "payload": {"code": code, "message": msg},
+            "payload": {"code": code, "message": msg or "Connection closed"},
         })
         self.is_running = False
 
-    def _on_omni_error(self, error: Exception):
+    def _on_omni_error(self, error):
         """Called when Omni encounters an error."""
         self.event_queue.put({
             "type": "omni_error",
@@ -151,46 +136,61 @@ class OmniSession:
         msg_type = message.get("type")
         payload = message.get("payload", {})
 
-        if msg_type == "audio_chunk":
-            # Forward audio to Omni
-            audio_base64 = payload.get("audio")
-            if audio_base64 and self.omni_service and self.omni_service.is_connected:
-                audio_data = base64.b64decode(audio_base64)
-                try:
+        if not self.omni_service or not self.omni_service.is_connected:
+            return
+
+        try:
+            if msg_type == "audio_chunk":
+                # Forward audio to Omni
+                audio_base64 = payload.get("audio")
+                if audio_base64:
+                    audio_data = base64.b64decode(audio_base64)
                     self.omni_service.send_audio(audio_data)
-                except Exception as e:
-                    logger.error(f"Failed to send audio: {e}")
 
-        elif msg_type == "image_frame":
-            # Forward image to Omni
-            image_base64 = payload.get("image")
-            mime_type = payload.get("mimeType", "image/jpeg")
-            if image_base64 and self.omni_service and self.omni_service.is_connected:
-                image_data = base64.b64decode(image_base64)
-                try:
-                    self.omni_service.send_image(image_data, mime_type)
-                except Exception as e:
-                    logger.error(f"Failed to send image: {e}")
+            elif msg_type == "audio_commit":
+                # Commit audio buffer and request response
+                self.omni_service.commit_audio()
 
-        elif msg_type == "text":
-            # Forward text to Omni
-            text = payload.get("text")
-            if text and self.omni_service and self.omni_service.is_connected:
-                try:
+            elif msg_type == "text":
+                # Send text message
+                text = payload.get("text")
+                if text:
                     self.omni_service.send_text(text)
-                except Exception as e:
-                    logger.error(f"Failed to send text: {e}")
 
-        elif msg_type == "ping":
+            elif msg_type == "cancel":
+                # Cancel current response
+                self.omni_service.cancel_response()
+
+            elif msg_type == "ping":
+                await self.websocket.send_json({
+                    "type": "pong",
+                    "payload": {},
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+            elif msg_type == "raw_event":
+                # Forward raw event to DashScope (for advanced usage)
+                event_type = payload.get("event_type")
+                event_data = payload.get("data", {})
+                if event_type:
+                    self.omni_service.send_event(event_type, event_data)
+
+        except Exception as e:
+            logger.error(f"Failed to handle message: {e}")
             await self.websocket.send_json({
-                "type": "pong",
-                "payload": {},
+                "type": "error",
+                "payload": {"message": str(e)},
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
 
     def close(self):
         """Close the session."""
         self.is_running = False
+        
+        if self._forward_task:
+            self._forward_task.cancel()
+            self._forward_task = None
+        
         if self.omni_service:
             self.omni_service.close()
             self.omni_service = None
@@ -205,10 +205,12 @@ async def omni_websocket_endpoint(
     WebSocket endpoint for real-time multimodal conversation.
     
     Message types from client:
-    - audio_chunk: {audio: base64, sampleRate: 16000}
-    - image_frame: {image: base64, mimeType: "image/jpeg"}
-    - text: {text: "hello"}
-    - ping: {}
+    - audio_chunk: {audio: base64} - Send audio data
+    - audio_commit: {} - Commit audio buffer and get response
+    - text: {text: "hello"} - Send text message
+    - cancel: {} - Cancel current response
+    - ping: {} - Keep alive
+    - raw_event: {event_type: str, data: dict} - Send raw DashScope event
     
     Message types to client:
     - omni_connected: {status: "ready"}
@@ -216,6 +218,7 @@ async def omni_websocket_endpoint(
     - omni_closed: {code: int, message: str}
     - omni_error: {message: str}
     - pong: {}
+    - error: {message: str}
     """
     await websocket.accept()
 
