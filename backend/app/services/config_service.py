@@ -99,13 +99,18 @@ class ConfigService:
             except Exception:
                 api_key_masked = "****"
 
+        # 脱敏 config 中的敏感字段
+        safe_config = dict(config.config or {})
+        if "api_key" in safe_config:
+            safe_config["api_key"] = mask_secret(safe_config["api_key"])
+
         return {
             "id": str(config.id),
             "model_type": config.model_type,
             "model_name": config.model_name,
             "provider": config.provider,
             "api_key_masked": api_key_masked,
-            "config": config.config or {},
+            "config": safe_config,
             "price_per_1k_input_tokens": float(config.price_per_1k_input_tokens),
             "price_per_1k_output_tokens": float(config.price_per_1k_output_tokens),
             "is_default": config.is_default,

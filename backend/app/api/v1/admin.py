@@ -310,8 +310,9 @@ async def test_model_connection(
     data: ModelTestRequest,
     admin: User = Depends(get_admin_user),
 ) -> ModelTestResponse:
-    """Test model connection and availability."""
+    """Test model connection by making a real API call."""
     import time
+    import httpx
 
     start = time.time()
 
@@ -319,23 +320,96 @@ async def test_model_connection(
         protocol = data.config.get("protocol", "openai_compatible")
         api_key = data.config.get("api_key")
 
-        # 所有协议都需要 API Key
         if not api_key:
             return ModelTestResponse(
                 success=False,
                 message="API Key 未配置",
             )
 
-        # WebSocket 协议（如 Omni 实时模型）使用固定 URL，不需要用户配置
-        # DashScope SDK 和 OpenAI 兼容协议只检查 API Key
+        # 真实测试连接
+        if protocol == "websocket":
+            # WebSocket 模型（如 Omni）：验证 API Key 格式即可，无法简单测试 WebSocket
+            if not api_key.startswith("sk-"):
+                return ModelTestResponse(
+                    success=False,
+                    message="API Key 格式不正确",
+                )
+            latency = int((time.time() - start) * 1000)
+            return ModelTestResponse(
+                success=True,
+                message=f"配置验证通过 ({data.provider}/{data.model_name})",
+                latency_ms=latency,
+            )
 
-        latency = int((time.time() - start) * 1000)
+        elif protocol == "dashscope_sdk":
+            # DashScope：调用模型列表接口验证 API Key
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    "https://dashscope.aliyuncs.com/api/v1/models",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+                latency = int((time.time() - start) * 1000)
+                
+                if response.status_code == 200:
+                    return ModelTestResponse(
+                        success=True,
+                        message=f"连接成功 ({data.provider}/{data.model_name})",
+                        latency_ms=latency,
+                    )
+                elif response.status_code == 401:
+                    return ModelTestResponse(
+                        success=False,
+                        message="API Key 无效或已过期",
+                        latency_ms=latency,
+                    )
+                else:
+                    return ModelTestResponse(
+                        success=False,
+                        message=f"连接失败: HTTP {response.status_code}",
+                        latency_ms=latency,
+                    )
+
+        elif protocol == "openai_compatible":
+            # OpenAI 兼容：调用 /models 接口验证
+            base_url = data.config.get("base_url", "https://api.openai.com/v1")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    f"{base_url}/models",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+                latency = int((time.time() - start) * 1000)
+                
+                if response.status_code == 200:
+                    return ModelTestResponse(
+                        success=True,
+                        message=f"连接成功 ({data.provider}/{data.model_name})",
+                        latency_ms=latency,
+                    )
+                elif response.status_code == 401:
+                    return ModelTestResponse(
+                        success=False,
+                        message="API Key 无效或已过期",
+                        latency_ms=latency,
+                    )
+                else:
+                    return ModelTestResponse(
+                        success=False,
+                        message=f"连接失败: HTTP {response.status_code}",
+                        latency_ms=latency,
+                    )
+
+        else:
+            return ModelTestResponse(
+                success=False,
+                message=f"不支持的协议: {protocol}",
+            )
+
+    except httpx.TimeoutException:
         return ModelTestResponse(
-            success=True,
-            message=f"配置验证通过 ({data.provider}/{data.model_name})",
-            latency_ms=latency,
+            success=False,
+            message="连接超时，请检查网络",
+            latency_ms=int((time.time() - start) * 1000),
         )
-
     except Exception as e:
         logger.error(f"Model test failed: {e}")
         return ModelTestResponse(
