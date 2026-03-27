@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, async_session_maker
 from app.core.security import get_current_user_id
 from app.models.conversation import Conversation
 from app.models.message import Message
@@ -196,6 +196,7 @@ async def send_message_stream(
         full_response = ""
         sentence_buffer = ""
         message_id = str(uuid.uuid4())
+        conversation_id = data.conversation_id
 
         try:
             # 流式获取 LLM 响应
@@ -237,24 +238,31 @@ async def send_message_stream(
                 except Exception as e:
                     logger.warning(f"TTS synthesis failed for remaining text: {e}")
 
-            # 保存 AI 消息
-            ai_message = Message(
-                id=message_id,
-                conversation_id=data.conversation_id,
-                role="assistant",
-                content=full_response,
-                has_audio=True,
-                extra_data={},
-            )
-            db.add(ai_message)
+            # 使用独立的 session 保存 AI 消息（原 session 已在 StreamingResponse 返回后关闭）
+            async with async_session_maker() as save_db:
+                ai_message = Message(
+                    id=message_id,
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=full_response,
+                    has_audio=True,
+                    extra_data={},
+                )
+                save_db.add(ai_message)
 
-            # 更新会话
-            conversation.message_count += 2
-            conversation.last_message_at = datetime.now(timezone.utc)
-            if not conversation.title:
-                conversation.title = data.content[:50] + ("..." if len(data.content) > 50 else "")
+                # 更新会话
+                result = await save_db.execute(
+                    select(Conversation).where(Conversation.id == conversation_id)
+                )
+                conv = result.scalar_one_or_none()
+                if conv:
+                    conv.message_count = (conv.message_count or 0) + 2
+                    conv.last_message_at = datetime.now(timezone.utc)
+                    if not conv.title:
+                        conv.title = data.content[:50] + ("..." if len(data.content) > 50 else "")
 
-            await db.commit()
+                await save_db.commit()
+                logger.info(f"Saved AI message {message_id} to conversation {conversation_id}")
 
             # 发送完成事件
             yield f"event: done\ndata: {json.dumps({'message_id': message_id}, ensure_ascii=False)}\n\n"
