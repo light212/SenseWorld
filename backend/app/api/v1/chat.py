@@ -261,8 +261,16 @@ async def send_message_stream(
                     if conv:
                         conv.message_count = (conv.message_count or 0) + 2
                         conv.last_message_at = datetime.now(timezone.utc)
-                        if not conv.title:
-                            conv.title = data.content[:50] + ("..." if len(data.content) > 50 else "")
+                        
+                        # 如果是新对话，让 LLM 生成标题
+                        if not conv.title or conv.title == "新对话":
+                            try:
+                                title_prompt = f"根据以下对话生成一个简短的标题（不超过20字，不要引号）：\n用户：{data.content}\nAI：{full_response[:200]}"
+                                title_response = await llm_service.chat([{"role": "user", "content": title_prompt}], max_tokens=30)
+                                conv.title = title_response.strip()[:30]
+                            except Exception as e:
+                                logger.warning(f"Failed to generate title: {e}")
+                                conv.title = data.content[:30] + ("..." if len(data.content) > 30 else "")
 
                     await save_db.commit()
                     logger.info(f"Saved AI message {message_id} to conversation {conversation_id}")
