@@ -30,6 +30,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 class ChatRequest(BaseModel):
     conversation_id: str
     content: str
+    input_type: str = "text"  # "text" or "voice"
 
 
 class ChatResponse(BaseModel):
@@ -162,16 +163,17 @@ async def send_message_stream(
             detail="无权访问此对话",
         )
 
-    # Save user message
+    # Save user message (流式接口需要显式提交，因为 StreamingResponse 返回后 session 会关闭)
     user_message = Message(
         conversation_id=data.conversation_id,
         role="user",
         content=data.content,
-        has_audio=False,
-        extra_data={"input_type": "text"},
+        has_audio=data.input_type == "voice",
+        extra_data={"input_type": data.input_type},
     )
     db.add(user_message)
     await db.commit()
+    logger.info(f"Saved user message ({data.input_type}) to conversation {data.conversation_id}")
 
     # Get recent messages for context
     msg_result = await db.execute(
