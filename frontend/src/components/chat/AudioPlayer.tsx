@@ -109,19 +109,75 @@ export function AudioPlayer({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // 已过期状态 - 改成"点击播放"（因为可以从服务器重新生成）
+  // 没有缓存时，点击从服务器获取
+  const handleLoadFromServer = async () => {
+    if (!fallbackSrc) {
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await fetch(fallbackSrc);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        audioUrlRef.current = url;
+        
+        const audio = new Audio(url);
+        audio.onloadedmetadata = () => {
+          setDuration(audio.duration || 0);
+          setIsLoading(false);
+          setIsExpired(false);
+        };
+        audio.ontimeupdate = () => setCurrentTime(audio.currentTime || 0);
+        audio.onended = () => {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        };
+        audio.onerror = () => {
+          setIsExpired(true);
+          setIsLoading(false);
+        };
+        audioRef.current = audio;
+        // 自动播放
+        audio.play();
+        setIsPlaying(true);
+      } else {
+        setIsExpired(true);
+        setIsLoading(false);
+      }
+    } catch (e) {
+      console.error('Failed to load audio from server:', e);
+      setIsExpired(true);
+      setIsLoading(false);
+    }
+  };
+
+  // 已过期状态 - 可以点击从服务器加载
   if (isExpired) {
     return (
-      <div
+      <button
+        onClick={handleLoadFromServer}
+        disabled={isLoading || !fallbackSrc}
         className={cn(
           "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
-          "bg-gray-100 text-gray-400",
+          "bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors",
+          isLoading && "opacity-50 cursor-wait",
+          !fallbackSrc && "cursor-not-allowed",
           className
         )}
       >
-        <Play className="w-4 h-4" />
-        <span className="text-xs">暂无语音</span>
-      </div>
+        {isLoading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs">加载中...</span>
+          </>
+        ) : (
+          <>
+            <Play className="w-4 h-4" />
+            <span className="text-xs">点击播放</span>
+          </>
+        )}
+      </button>
     );
   }
 

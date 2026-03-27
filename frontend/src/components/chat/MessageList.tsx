@@ -134,7 +134,11 @@ function MessageItem({ message }: MessageItemProps) {
 
             {/* AI 语音播放器 */}
             {message.hasAudio && !isUser && (
-              <AudioPlayer messageId={message.id} className="mt-2" />
+              <AudioPlayer 
+                messageId={message.id} 
+                fallbackSrc={`http://localhost:8000/v1/audio/${message.id}`}
+                className="mt-2" 
+              />
             )}
           </div>
         )}
