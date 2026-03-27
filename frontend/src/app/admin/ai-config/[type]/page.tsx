@@ -483,7 +483,7 @@ export default function CapabilityDetailPage() {
       {/* 添加模型弹窗 - 一步完成 */}
       {modalStep !== "closed" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={closeAddModal} />
+          <div className="absolute inset-0 bg-black/50" />
           <div className="relative bg-white rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden shadow-2xl">
             {/* 头部 */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
