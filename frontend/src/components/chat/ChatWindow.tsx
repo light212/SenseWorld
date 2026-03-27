@@ -161,7 +161,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     audioQueueRef.current = [];
 
     let fullContent = "";
-    let messageId = "";
+    let aiMessageId = "";
 
     try {
       const response = await fetch("http://localhost:8000/v1/chat/stream", {
@@ -174,7 +174,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           conversation_id: activeConversationId,
           content: text,
           input_type: inputType,
-          message_id: messageId,
+          message_id: messageId,  // 用户消息 ID
         }),
       });
 
@@ -220,7 +220,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               }
               
               if (data.message_id) {
-                messageId = data.message_id;
+                aiMessageId = data.message_id;
               }
             } catch (e) {
               // 忽略解析错误
@@ -232,7 +232,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
       // 添加完整的 AI 消息
       if (fullContent) {
-        const finalMessageId = messageId || crypto.randomUUID();
+        const finalMessageId = aiMessageId || crypto.randomUUID();
         
         // 保存音频到本地缓存
         if (audioChunksForSaveRef.current.length > 0) {
