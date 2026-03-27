@@ -20,7 +20,7 @@ from app.core.security import get_current_user_id
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.services.llm_service import get_llm_service, get_llm_service_from_db
-from app.services.tts_service import get_tts_service
+from app.services.tts_service import get_tts_service, get_tts_service_from_db
 
 logger = logging.getLogger(__name__)
 
@@ -188,12 +188,11 @@ async def send_message_stream(
         for m in recent_messages
     ]
 
-    # 在 generator 外面获取 LLM 服务（因为 db session 会在返回后关闭）
+    # 在 generator 外面获取 LLM 和 TTS 服务（因为 db session 会在返回后关闭）
     llm_service = await get_llm_service_from_db(db)
+    tts_service = await get_tts_service_from_db(db)
 
     async def generate_stream():
-        tts_service = get_tts_service()
-
         full_response = ""
         sentence_buffer = ""
         message_id = str(uuid.uuid4())
