@@ -139,22 +139,21 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
   // 流式聊天请求
   const streamChat = useCallback(async (text: string) => {
-    console.log("[streamChat] start", { activeConversationId, token: !!token, text });
     if (!activeConversationId || !token) {
-      console.log("[streamChat] missing params, abort");
       return;
     }
 
     // 清空流式内容，开始流式状态
     clearStreamingContent();
     setIsStreaming(true);
+    // 确保状态同步（React 18 会批处理，这里强制触发）
+    await new Promise(resolve => setTimeout(resolve, 0));
     audioQueueRef.current = [];
 
     let fullContent = "";
     let messageId = "";
 
     try {
-      console.log("[streamChat] fetching...");
       const response = await fetch("http://localhost:8000/v1/chat/stream", {
         method: "POST",
         headers: {
@@ -167,27 +166,21 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         }),
       });
 
-      console.log("[streamChat] response status", response.status);
       if (!response.ok) {
         throw new Error("Stream request failed");
       }
 
       const reader = response.body?.getReader();
-      console.log("[streamChat] got reader", !!reader);
       if (!reader) throw new Error("No reader");
 
       const decoder = new TextDecoder();
       let buffer = "";
 
-      console.log("[streamChat] starting read loop");
       while (true) {
-        console.log("[streamChat] calling reader.read()...");
         const { done, value } = await reader.read();
-        console.log("[streamChat] read result", { done, valueLen: value?.length });
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        console.log("[SSE chunk]", chunk);
         buffer += chunk;
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
@@ -203,7 +196,6 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               const data = JSON.parse(dataStr);
               
               if (data.content) {
-                console.log("[SSE text]", data.content);
                 fullContent += data.content;
                 updateStreamingContent(data.content);
               }
