@@ -41,11 +41,11 @@ const capabilities = [
 
 // 服务商选项
 const providers = [
-  { id: "dashscope", name: "阿里云通义千问", icon: "🇨🇳", recommended: true },
-  { id: "openai", name: "OpenAI", icon: "🇺🇸" },
-  { id: "baidu", name: "百度文心一言", icon: "🇨🇳" },
-  { id: "zhipu", name: "智谱 AI", icon: "🇨🇳" },
-  { id: "other", name: "其他服务商", icon: "⚙️" },
+  { id: "dashscope", name: "阿里云通义千问", icon: "🇨🇳", recommended: true, desc: "国内服务 · 速度快 · 中文效果好" },
+  { id: "openai", name: "OpenAI", icon: "🇺🇸", desc: "国际服务 · 效果优秀 · 需翻墙" },
+  { id: "baidu", name: "百度文心一言", icon: "🇨🇳", desc: "国内服务 · 百度生态" },
+  { id: "zhipu", name: "智谱 AI", icon: "🇨🇳", desc: "国内服务 · 清华技术" },
+  { id: "other", name: "其他服务商", icon: "⚙️", desc: "自定义配置" },
 ];
 
 // 调用方式选项
@@ -498,15 +498,18 @@ export default function CapabilityDetailPage() {
                       )}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{p.icon}</span>
-                          <span className="font-medium text-gray-900">{p.name}</span>
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{p.icon}</span>
+                            <span className="font-medium text-gray-900">{p.name}</span>
+                            {p.recommended && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                                推荐
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1 ml-11">{p.desc}</p>
                         </div>
-                        {p.recommended && (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                            推荐
-                          </span>
-                        )}
                       </div>
                     </button>
                   ))}
@@ -515,20 +518,43 @@ export default function CapabilityDetailPage() {
 
               {/* 步骤 2: 填写配置 */}
               {modalStep === "config" && (
-                <div className="space-y-4">
+                <div className="space-y-5">
+                  {/* 已选服务商 */}
+                  <div className="text-sm text-gray-500">
+                    已选：{providers.find(p => p.id === modalProvider)?.name}
+                  </div>
+
+                  {/* API Key - 放第一位 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">API Key <span className="text-red-500">*</span></label>
+                    <input
+                      type="password"
+                      value={modalApiKey}
+                      onChange={(e) => setModalApiKey(e.target.value)}
+                      placeholder="输入 API Key"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      💡 在{modalProvider === "dashscope" ? "阿里云控制台" : modalProvider === "openai" ? "OpenAI 官网" : "服务商控制台"}获取 API Key
+                    </p>
+                  </div>
+
                   {/* 模型选择 */}
                   {modelOptions.length > 0 ? (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">选择模型</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">选择模型 <span className="text-red-500">*</span></label>
                       <select
                         value={modalModel}
                         onChange={(e) => setModalModel(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         {modelOptions.map((m) => (
-                          <option key={m.id} value={m.id}>{m.name} - {m.description}</option>
+                          <option key={m.id} value={m.id}>{m.name}</option>
                         ))}
                       </select>
+                      <p className="text-xs text-gray-500 mt-1.5">
+                        {modelOptions.find(m => m.id === modalModel)?.description}
+                      </p>
                     </div>
                   ) : (
                     <div>
@@ -537,52 +563,26 @@ export default function CapabilityDetailPage() {
                         type="text"
                         value={modalModel}
                         onChange={(e) => setModalModel(e.target.value)}
-                        placeholder="输入模型名称"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="输入模型名称，如 gpt-4"
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   )}
 
-                  {/* 调用方式 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">调用方式</label>
-                    <select
-                      value={modalProtocol}
-                      onChange={(e) => setModalProtocol(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      {protocols.map((p) => (
-                        <option key={p.id} value={p.id}>{p.label} - {p.description}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Base URL */}
-                  {modalProtocol === "openai_compatible" && (
+                  {/* OpenAI 需要 Base URL */}
+                  {modalProvider === "openai" && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Base URL <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
                       <input
                         type="text"
                         value={modalBaseUrl}
                         onChange={(e) => setModalBaseUrl(e.target.value)}
                         placeholder="https://api.openai.com/v1"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
+                      <p className="text-xs text-gray-500 mt-1.5">留空则使用官方地址</p>
                     </div>
                   )}
-
-                  {/* API Key */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">API Key <span className="text-red-500">*</span></label>
-                    <input
-                      type="password"
-                      value={modalApiKey}
-                      onChange={(e) => setModalApiKey(e.target.value)}
-                      placeholder="输入 API Key"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">💡 在服务商控制台获取 API Key</p>
-                  </div>
 
                   {/* TTS 音色 */}
                   {isTTS && (
@@ -591,7 +591,7 @@ export default function CapabilityDetailPage() {
                       <select
                         value={modalVoice}
                         onChange={(e) => setModalVoice(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         {voiceOptions.map((v) => (
                           <option key={v.id} value={v.id}>{v.name} - {v.description}</option>
@@ -599,32 +599,6 @@ export default function CapabilityDetailPage() {
                       </select>
                     </div>
                   )}
-
-                  {/* 终端类型 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">终端类型</label>
-                    <div className="flex flex-wrap gap-2">
-                      {terminalTypes.map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          disabled={!t.available}
-                          onClick={() => t.available && setModalTerminalType(t.id)}
-                          className={cn(
-                            "px-4 py-2 text-sm rounded-lg border transition-colors",
-                            t.available
-                              ? modalTerminalType === t.id
-                                ? "border-blue-500 bg-blue-50 text-blue-700"
-                                : "border-gray-200 hover:border-gray-300"
-                              : "border-gray-100 text-gray-400 cursor-not-allowed"
-                          )}
-                        >
-                          {t.label}
-                          {!t.available && <span className="ml-1 text-xs">({t.hint})</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
 
