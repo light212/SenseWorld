@@ -201,6 +201,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               }
               
               if (data.audio_base64) {
+                console.log("[Audio] received audio chunk, length:", data.audio_base64.length);
                 audioQueueRef.current.push(data.audio_base64);
                 playNextAudio();
               }
@@ -210,6 +211,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               }
             } catch (e) {
               // 忽略解析错误
+              console.warn("[SSE] parse error:", e);
             }
           }
         }
