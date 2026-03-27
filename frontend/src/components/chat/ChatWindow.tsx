@@ -39,6 +39,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const audioChunksForSaveRef = useRef<string[]>([]); // 用于保存到缓存的音频
   const isPlayingRef = useRef(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null); // Bug 1: 跟踪当前音频
+  const messagesCacheRef = useRef<Map<string, Message[]>>(new Map()); // 会话消息缓存
 
   // 使用传入的 conversationId 或 store 中的
   const activeConversationId = conversationId || currentConversationId;
@@ -106,15 +107,18 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     };
   }, [activeConversationId, stopCurrentAudio]);
 
-  // 加载历史消息 - 当会话变化时重新加载
+  // 加载历史消息 - 当会话变化时重新加载（带缓存优化）
   useEffect(() => {
     if (!token || !activeConversationId) return;
     
     // Bug 1: 停止当前音频
     stopCurrentAudio();
     
-    // 清空当前消息
-    setMessages([]);
+    // 先用缓存（如果有）
+    const cached = messagesCacheRef.current.get(activeConversationId);
+    if (cached) {
+      setMessages(cached);
+    }
     
     const loadMessages = async () => {
       try {
@@ -137,7 +141,13 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
                 inputType: m.extra_data.input_type,
               } : undefined,
             }));
+            // 更新缓存和 UI
+            messagesCacheRef.current.set(activeConversationId, loadedMessages);
             setMessages(loadedMessages);
+          } else {
+            // 空会话也缓存
+            messagesCacheRef.current.set(activeConversationId, []);
+            setMessages([]);
           }
         }
       } catch (error) {
