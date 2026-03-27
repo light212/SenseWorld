@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getAudio, createAudioUrl } from "@/lib/audio-cache";
 
 // 格式化时长
 function formatDuration(seconds: number): string {
@@ -12,51 +13,87 @@ function formatDuration(seconds: number): string {
 }
 
 interface AudioPlayerProps {
-  src?: string;
-  autoPlay?: boolean;
+  messageId: string; // 用于从缓存获取
+  fallbackSrc?: string; // 如果缓存没有，用这个 URL
   className?: string;
 }
 
 export function AudioPlayer({
-  src,
-  autoPlay = false,
+  messageId,
+  fallbackSrc,
   className,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isExpired, setIsExpired] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (src) {
-      audioRef.current = new Audio();
-      audioRef.current.preload = "metadata"; // 预加载元数据获取时长
-      audioRef.current.onloadedmetadata = () => {
-        setDuration(audioRef.current?.duration || 0);
-      };
-      audioRef.current.ontimeupdate = () => {
-        setCurrentTime(audioRef.current?.currentTime || 0);
-      };
-      audioRef.current.onended = () => {
-        setIsPlaying(false);
-        setCurrentTime(0);
-      };
-      audioRef.current.onerror = () => {
-        // 静默处理加载错误
-        setDuration(0);
-      };
-      audioRef.current.src = src;
+    let mounted = true;
+    
+    async function loadAudio() {
+      setIsLoading(true);
+      
+      // 1. 先尝试从本地缓存获取
+      const cached = await getAudio(messageId);
+      if (cached && cached.audioChunks.length > 0) {
+        const url = createAudioUrl(cached.audioChunks);
+        audioUrlRef.current = url;
+        
+        if (mounted) {
+          const audio = new Audio(url);
+          audio.onloadedmetadata = () => {
+            if (mounted) {
+              setDuration(audio.duration || 0);
+              setIsLoading(false);
+            }
+          };
+          audio.ontimeupdate = () => {
+            if (mounted) setCurrentTime(audio.currentTime || 0);
+          };
+          audio.onended = () => {
+            if (mounted) {
+              setIsPlaying(false);
+              setCurrentTime(0);
+            }
+          };
+          audio.onerror = () => {
+            if (mounted) {
+              setIsExpired(true);
+              setIsLoading(false);
+            }
+          };
+          audioRef.current = audio;
+        }
+        return;
+      }
+      
+      // 2. 没有缓存，显示已过期
+      if (mounted) {
+        setIsExpired(true);
+        setIsLoading(false);
+      }
     }
+    
+    loadAudio();
+    
     return () => {
+      mounted = false;
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
     };
-  }, [src]);
+  }, [messageId]);
 
   const handlePlayPause = () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || isExpired) return;
     
     if (isPlaying) {
       audioRef.current.pause();
@@ -68,15 +105,31 @@ export function AudioPlayer({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  if (!src) return null;
+  // 已过期状态
+  if (isExpired) {
+    return (
+      <div
+        className={cn(
+          "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
+          "bg-gray-100 text-gray-400",
+          className
+        )}
+      >
+        <AlertCircle className="w-4 h-4" />
+        <span className="text-xs">语音已过期</span>
+      </div>
+    );
+  }
 
   return (
     <button
       onClick={handlePlayPause}
+      disabled={isLoading}
       className={cn(
         "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
         "bg-gray-100 hover:bg-gray-200 transition-colors",
         "text-gray-700",
+        isLoading && "opacity-50 cursor-wait",
         className
       )}
       aria-label={isPlaying ? "暂停" : "播放"}
@@ -103,9 +156,11 @@ export function AudioPlayer({
 
       {/* 时长 */}
       <span className="text-xs text-gray-500 tabular-nums min-w-[32px]">
-        {duration > 0 
-          ? (isPlaying ? formatDuration(currentTime) : formatDuration(duration))
-          : "..."
+        {isLoading
+          ? "..."
+          : isPlaying
+          ? formatDuration(currentTime)
+          : formatDuration(duration)
         }
       </span>
     </button>

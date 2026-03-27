@@ -158,7 +158,7 @@ function MessageItem({ message, isNew = false, showAvatar = true }: MessageItemP
             {/* Audio player for AI voice messages */}
             {message.hasAudio && !isUser && (
               <AudioPlayer
-                src={`http://localhost:8000/v1/audio/${message.id}`}
+                messageId={message.id}
                 className="mt-2"
               />
             )}

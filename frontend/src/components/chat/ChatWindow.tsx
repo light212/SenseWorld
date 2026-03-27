@@ -11,6 +11,7 @@ import { CompactInputBar } from "./CompactInputBar";
 import { useConversationStore } from "@/stores/conversationStore";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { saveAudio, cleanupOldAudio } from "@/lib/audio-cache";
 import type { Message } from "@/types";
 
 interface ChatWindowProps {
@@ -35,11 +36,17 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
   const { token } = useAuthStore();
   const audioQueueRef = useRef<string[]>([]);
+  const audioChunksForSaveRef = useRef<string[]>([]); // 用于保存到缓存的音频
   const isPlayingRef = useRef(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null); // Bug 1: 跟踪当前音频
 
   // 使用传入的 conversationId 或 store 中的
   const activeConversationId = conversationId || currentConversationId;
+
+  // 启动时清理过期音频
+  useEffect(() => {
+    cleanupOldAudio().catch(console.error);
+  }, []);
 
   // Bug 1: 停止当前播放的音频
   const stopCurrentAudio = useCallback(() => {
@@ -203,6 +210,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               if (data.audio_base64) {
                 console.log("[Audio] received audio chunk, length:", data.audio_base64.length);
                 audioQueueRef.current.push(data.audio_base64);
+                audioChunksForSaveRef.current.push(data.audio_base64); // 保存用于缓存
                 playNextAudio();
               }
               
@@ -219,13 +227,21 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
       // 添加完整的 AI 消息
       if (fullContent) {
+        const finalMessageId = messageId || crypto.randomUUID();
+        
+        // 保存音频到本地缓存
+        if (audioChunksForSaveRef.current.length > 0) {
+          saveAudio(finalMessageId, audioChunksForSaveRef.current).catch(console.error);
+          audioChunksForSaveRef.current = []; // 清空
+        }
+        
         const aiMessage: Message = {
-          id: messageId || crypto.randomUUID(),
+          id: finalMessageId,
           conversationId: activeConversationId,
           role: "assistant",
           content: fullContent,
           createdAt: new Date().toISOString(),
-          hasAudio: true,
+          hasAudio: audioChunksForSaveRef.current.length > 0 || true, // 有音频标记
         };
         addMessage(aiMessage);
       }
