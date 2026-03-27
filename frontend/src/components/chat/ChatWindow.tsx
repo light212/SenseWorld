@@ -173,13 +173,17 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       }
 
       const reader = response.body?.getReader();
+      console.log("[streamChat] got reader", !!reader);
       if (!reader) throw new Error("No reader");
 
       const decoder = new TextDecoder();
       let buffer = "";
 
+      console.log("[streamChat] starting read loop");
       while (true) {
+        console.log("[streamChat] calling reader.read()...");
         const { done, value } = await reader.read();
+        console.log("[streamChat] read result", { done, valueLen: value?.length });
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
