@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Chat API routes for message handling and AI responses.
 支持流式 LLM + WebSocket 流式 TTS。
