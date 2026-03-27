@@ -139,7 +139,11 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
   // 流式聊天请求
   const streamChat = useCallback(async (text: string) => {
-    if (!activeConversationId || !token) return;
+    console.log("[streamChat] start", { activeConversationId, token: !!token, text });
+    if (!activeConversationId || !token) {
+      console.log("[streamChat] missing params, abort");
+      return;
+    }
 
     // 清空流式内容，开始流式状态
     clearStreamingContent();
@@ -150,6 +154,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     let messageId = "";
 
     try {
+      console.log("[streamChat] fetching...");
       const response = await fetch("http://localhost:8000/v1/chat/stream", {
         method: "POST",
         headers: {
@@ -162,6 +167,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         }),
       });
 
+      console.log("[streamChat] response status", response.status);
       if (!response.ok) {
         throw new Error("Stream request failed");
       }
