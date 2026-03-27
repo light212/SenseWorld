@@ -32,6 +32,7 @@ class ChatRequest(BaseModel):
     content: str
     input_type: str = "text"  # "text" or "voice"
     message_id: str | None = None  # 前端生成的消息 ID（可选）
+    audio_duration: int | None = None  # 语音时长（毫秒）
 
 
 class ChatResponse(BaseModel):
@@ -171,7 +172,7 @@ async def send_message_stream(
         role="user",
         content=data.content,
         has_audio=data.input_type == "voice",
-        extra_data={"input_type": data.input_type},
+        extra_data={"input_type": data.input_type, "audio_duration": data.audio_duration},
     )
     db.add(user_message)
     await db.commit()
