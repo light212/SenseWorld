@@ -4,7 +4,6 @@ Conversation schemas.
 
 from datetime import datetime
 from typing import Optional
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -38,13 +37,13 @@ class ConversationExtraData(BaseModel):
 class ConversationResponse(ConversationBase):
     """Conversation response schema."""
 
-    id: UUID
-    user_id: UUID
+    id: str
+    user_id: str
     created_at: datetime
     updated_at: datetime
     last_message_at: Optional[datetime] = None
     message_count: int = 0
-    extra_data: ConversationExtraData = Field(default_factory=ConversationExtraData)
+    extra_data: Optional[dict] = None
 
     model_config = {"from_attributes": True}
 
