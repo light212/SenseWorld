@@ -370,12 +370,23 @@ async def test_model_connection(
                     )
 
         elif protocol == "openai_compatible":
-            # OpenAI 兼容：调用 /models 接口验证
+            # OpenAI 兼容：调用 /chat/completions 接口验证
             base_url = data.config.get("base_url", "https://api.openai.com/v1")
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(
-                    f"{base_url}/models",
-                    headers={"Authorization": f"Bearer {api_key}"},
+            # 移除尾部斜杠
+            base_url = base_url.rstrip("/")
+            
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    f"{base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": data.model_name,
+                        "messages": [{"role": "user", "content": "hi"}],
+                        "max_tokens": 5,
+                    },
                 )
                 latency = int((time.time() - start) * 1000)
                 
@@ -392,9 +403,14 @@ async def test_model_connection(
                         latency_ms=latency,
                     )
                 else:
+                    error_detail = ""
+                    try:
+                        error_detail = response.json().get("error", {}).get("message", "")
+                    except:
+                        pass
                     return ModelTestResponse(
                         success=False,
-                        message=f"连接失败: HTTP {response.status_code}",
+                        message=f"连接失败: HTTP {response.status_code}" + (f" - {error_detail}" if error_detail else ""),
                         latency_ms=latency,
                     )
 
