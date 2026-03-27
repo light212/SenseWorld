@@ -155,13 +155,13 @@ function MessageItem({ message, isNew = false, showAvatar = true }: MessageItemP
           >
             <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
 
-            {/* TODO: Audio player for saved audio - 暂时禁用，音频已在流式时播放 */}
-            {/* {message.hasAudio && !isUser && (
+            {/* Audio player for AI voice messages */}
+            {message.hasAudio && !isUser && (
               <AudioPlayer
                 src={`http://localhost:8000/v1/audio/${message.id}`}
                 className="mt-2"
               />
-            )} */}
+            )}
           </div>
         )}
 
