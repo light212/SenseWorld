@@ -65,19 +65,25 @@ const terminalTypes = [
 
 // 根据服务商和能力类型返回模型选项
 const getModelOptions = (provider: string, modelType: string) => {
-  const models: Record<string, Record<string, { id: string; name: string; description: string }[]>> = {
+  const models: Record<string, Record<string, { id: string; name: string; description: string; protocol?: string }[]>> = {
     dashscope: {
       llm: [
-        { id: "qwen-turbo", name: "通义千问-Turbo", description: "快速响应" },
-        { id: "qwen-plus", name: "通义千问-Plus", description: "均衡性能" },
-        { id: "qwen-max", name: "通义千问-Max", description: "最强能力" },
+        { id: "qwen-turbo", name: "通义千问-Turbo", description: "快速响应", protocol: "dashscope_sdk" },
+        { id: "qwen-plus", name: "通义千问-Plus", description: "均衡性能", protocol: "dashscope_sdk" },
+        { id: "qwen-max", name: "通义千问-Max", description: "最强能力", protocol: "dashscope_sdk" },
       ],
-      asr: [{ id: "paraformer-v1", name: "Paraformer", description: "中文语音识别" }],
-      tts: [{ id: "cosyvoice-v1", name: "CosyVoice", description: "语音合成" }],
+      asr: [
+        { id: "qwen3-asr-flash", name: "Qwen3-ASR-Flash", description: "HTTP 调用 · 简单易用", protocol: "dashscope_sdk" },
+        { id: "paraformer-v2", name: "Paraformer-v2", description: "WebSocket · 实时识别 · 精度高", protocol: "websocket" },
+        { id: "sensevoice-v1", name: "SenseVoice", description: "WebSocket · 多语言 · 情感识别", protocol: "websocket" },
+      ],
+      tts: [
+        { id: "cosyvoice-v1", name: "CosyVoice", description: "语音合成", protocol: "dashscope_sdk" },
+      ],
     },
     openai: {
       llm: [
-        { id: "gpt-4o", name: "GPT-4o", description: "最新多模态" },
+        { id: "gpt-4o", name: "GPT-4o", description: "最新多模态", protocol: "openai_compatible" },
         { id: "gpt-4-turbo", name: "GPT-4 Turbo", description: "高性能" },
         { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", description: "经济选择" },
       ],
@@ -223,6 +229,10 @@ export default function CapabilityDetailPage() {
     const options = getModelOptions("dashscope", type);
     if (options.length > 0) {
       setModalModel(options[0].id);
+      // 根据模型设置 protocol
+      if (options[0].protocol) {
+        setModalProtocol(options[0].protocol);
+      }
     }
   };
 
@@ -233,18 +243,24 @@ export default function CapabilityDetailPage() {
   // 切换服务商时自动更新模型选项
   const handleProviderChange = (providerId: string) => {
     setModalProvider(providerId);
-    // 自动选择调用方式
-    if (providerId === "dashscope") {
-      setModalProtocol("dashscope_sdk");
-    } else {
-      setModalProtocol("openai_compatible");
-    }
-    // 自动选择第一个模型
+    // 自动选择第一个模型并设置对应的 protocol
     const options = getModelOptions(providerId, type);
     if (options.length > 0) {
       setModalModel(options[0].id);
+      setModalProtocol(options[0].protocol || (providerId === "dashscope" ? "dashscope_sdk" : "openai_compatible"));
     } else {
       setModalModel("");
+      setModalProtocol(providerId === "dashscope" ? "dashscope_sdk" : "openai_compatible");
+    }
+  };
+
+  // 切换模型时自动更新 protocol
+  const handleModelChange = (modelId: string) => {
+    setModalModel(modelId);
+    const options = getModelOptions(modalProvider, type);
+    const selected = options.find(m => m.id === modelId);
+    if (selected?.protocol) {
+      setModalProtocol(selected.protocol);
     }
   };
 
@@ -255,6 +271,7 @@ export default function CapabilityDetailPage() {
     try {
       const config: Record<string, any> = {
         api_key: modalApiKey,
+        protocol: modalProtocol,  // 传递调用方式
       };
       
       if (modalBaseUrl) config.base_url = modalBaseUrl;
@@ -550,7 +567,7 @@ export default function CapabilityDetailPage() {
                       <>
                         <select
                           value={modalModel}
-                          onChange={(e) => setModalModel(e.target.value)}
+                          onChange={(e) => handleModelChange(e.target.value)}
                           className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           {modelOptions.map((m) => (
