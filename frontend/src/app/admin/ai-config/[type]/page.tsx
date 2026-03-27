@@ -39,13 +39,13 @@ const capabilities = [
   },
 ];
 
-// 服务商选项
+// 服务商选项 - 去掉国旗图标
 const providers = [
-  { id: "dashscope", name: "阿里云通义千问", icon: "🇨🇳", recommended: true, desc: "国内服务 · 速度快 · 中文效果好" },
-  { id: "openai", name: "OpenAI", icon: "🇺🇸", desc: "国际服务 · 效果优秀 · 需翻墙" },
-  { id: "baidu", name: "百度文心一言", icon: "🇨🇳", desc: "国内服务 · 百度生态" },
-  { id: "zhipu", name: "智谱 AI", icon: "🇨🇳", desc: "国内服务 · 清华技术" },
-  { id: "other", name: "其他服务商", icon: "⚙️", desc: "自定义配置" },
+  { id: "dashscope", name: "阿里云通义千问", recommended: true, desc: "国内服务 · 速度快 · 中文效果好" },
+  { id: "openai", name: "OpenAI", desc: "国际服务 · 效果优秀 · 需翻墙" },
+  { id: "baidu", name: "百度文心一言", desc: "国内服务 · 百度生态" },
+  { id: "zhipu", name: "智谱 AI", desc: "国内服务 · 清华技术" },
+  { id: "other", name: "其他服务商", desc: "自定义配置" },
 ];
 
 // 调用方式选项
@@ -98,7 +98,7 @@ interface TestResult {
   latency_ms?: number;
 }
 
-type ModalStep = "closed" | "provider" | "config" | "testing" | "success" | "error";
+type ModalStep = "closed" | "form" | "testing" | "success" | "error";
 
 export default function CapabilityDetailPage() {
   const params = useParams();
@@ -211,33 +211,41 @@ export default function CapabilityDetailPage() {
 
   // 弹窗操作
   const openAddModal = () => {
-    setModalStep("provider");
+    setModalStep("form");
     setModalProvider("dashscope");
     setModalModel("");
     setModalApiKey("");
     setModalBaseUrl("");
-    setModalProtocol("dashscope");
+    setModalProtocol("dashscope_sdk");
     setModalTerminalType("web");
     setModalError("");
+    // 自动选择第一个模型
+    const options = getModelOptions("dashscope", type);
+    if (options.length > 0) {
+      setModalModel(options[0].id);
+    }
   };
 
   const closeAddModal = () => {
     setModalStep("closed");
   };
 
-  const handleProviderNext = () => {
+  // 切换服务商时自动更新模型选项
+  const handleProviderChange = (providerId: string) => {
+    setModalProvider(providerId);
     // 自动选择调用方式
-    if (modalProvider === "dashscope") {
+    if (providerId === "dashscope") {
       setModalProtocol("dashscope_sdk");
     } else {
       setModalProtocol("openai_compatible");
     }
     // 自动选择第一个模型
-    const options = getModelOptions(modalProvider, type);
+    const options = getModelOptions(providerId, type);
     if (options.length > 0) {
       setModalModel(options[0].id);
+    } else {
+      setModalModel("");
     }
-    setModalStep("config");
   };
 
   const handleTestAndSave = async () => {
@@ -455,78 +463,72 @@ export default function CapabilityDetailPage() {
         </div>
       )}
 
-      {/* 添加模型弹窗 */}
+      {/* 添加模型弹窗 - 一步完成 */}
       {modalStep !== "closed" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={closeAddModal} />
-          <div className="relative bg-white rounded-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden shadow-2xl">
+          <div className="relative bg-white rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden shadow-2xl">
             {/* 头部 */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {modalStep === "provider" && "选择服务商"}
-                  {modalStep === "config" && "填写配置"}
-                  {modalStep === "testing" && "测试连接"}
-                  {modalStep === "success" && "配置成功"}
-                  {modalStep === "error" && "配置失败"}
-                </h2>
-                {(modalStep === "provider" || modalStep === "config") && (
-                  <p className="text-sm text-gray-500">步骤 {modalStep === "provider" ? "1" : "2"}/2</p>
-                )}
-              </div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {modalStep === "form" && "添加模型"}
+                {modalStep === "testing" && "测试连接"}
+                {modalStep === "success" && "配置成功"}
+                {modalStep === "error" && "配置失败"}
+              </h2>
               <button onClick={closeAddModal} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* 内容 */}
-            <div className="p-6 min-h-[300px] max-h-[60vh] overflow-y-auto">
-              {/* 步骤 1: 选择服务商 */}
-              {modalStep === "provider" && (
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-600 mb-2">选择 AI 服务提供商：</p>
-                  {providers.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setModalProvider(p.id)}
-                      className={cn(
-                        "w-full p-4 text-left border rounded-xl transition-all",
-                        modalProvider === p.id
-                          ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl">{p.icon}</span>
-                            <span className="font-medium text-gray-900">{p.name}</span>
-                            {p.recommended && (
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                推荐
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-500 mt-1 ml-11">{p.desc}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* 步骤 2: 填写配置 */}
-              {modalStep === "config" && (
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {/* 表单 - 一步完成 */}
+              {modalStep === "form" && (
                 <div className="space-y-5">
-                  {/* 已选服务商 */}
-                  <div className="text-sm text-gray-500">
-                    已选：{providers.find(p => p.id === modalProvider)?.name}
+                  {/* 服务商选择 - radio 样式 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">选择服务商</label>
+                    <div className="space-y-2">
+                      {providers.slice(0, 2).map((p) => (
+                        <label
+                          key={p.id}
+                          className={cn(
+                            "flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-all",
+                            modalProvider === p.id
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="provider"
+                            value={p.id}
+                            checked={modalProvider === p.id}
+                            onChange={() => handleProviderChange(p.id)}
+                            className="mt-0.5 w-4 h-4 text-blue-600"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900">{p.name}</span>
+                              {p.recommended && (
+                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                                  推荐
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 mt-0.5">{p.desc}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* API Key - 放第一位 */}
+                  {/* API Key */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">API Key <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      API Key <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="password"
                       value={modalApiKey}
@@ -535,30 +537,31 @@ export default function CapabilityDetailPage() {
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <p className="text-xs text-gray-500 mt-1.5">
-                      💡 在{modalProvider === "dashscope" ? "阿里云控制台" : modalProvider === "openai" ? "OpenAI 官网" : "服务商控制台"}获取 API Key
+                      在{modalProvider === "dashscope" ? "阿里云控制台" : "OpenAI 官网"}获取
                     </p>
                   </div>
 
                   {/* 模型选择 */}
-                  {modelOptions.length > 0 ? (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">选择模型 <span className="text-red-500">*</span></label>
-                      <select
-                        value={modalModel}
-                        onChange={(e) => setModalModel(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {modelOptions.map((m) => (
-                          <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1.5">
-                        {modelOptions.find(m => m.id === modalModel)?.description}
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">模型名称 <span className="text-red-500">*</span></label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      选择模型 <span className="text-red-500">*</span>
+                    </label>
+                    {modelOptions.length > 0 ? (
+                      <>
+                        <select
+                          value={modalModel}
+                          onChange={(e) => setModalModel(e.target.value)}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          {modelOptions.map((m) => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1.5">
+                          {modelOptions.find(m => m.id === modalModel)?.description}
+                        </p>
+                      </>
+                    ) : (
                       <input
                         type="text"
                         value={modalModel}
@@ -566,10 +569,10 @@ export default function CapabilityDetailPage() {
                         placeholder="输入模型名称，如 gpt-4"
                         className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  {/* OpenAI 需要 Base URL */}
+                  {/* OpenAI Base URL */}
                   {modalProvider === "openai" && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
@@ -613,7 +616,7 @@ export default function CapabilityDetailPage() {
               {/* 成功 */}
               {modalStep === "success" && (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <CheckCircle className="w-12 h-12 text-emerald-600 mb-4" />
+                  <CheckCircle className="w-12 h-12 text-green-600 mb-4" />
                   <p className="text-gray-900 font-medium">测试成功</p>
                   <p className="text-sm text-gray-500">延迟: {modalLatency}ms</p>
                 </div>
@@ -630,25 +633,25 @@ export default function CapabilityDetailPage() {
             </div>
 
             {/* 底部按钮 */}
-            {modalStep !== "testing" && modalStep !== "success" && (
-              <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
+            {modalStep === "form" && (
+              <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
                 <button
-                  onClick={modalStep === "config" ? () => setModalStep("provider") : closeAddModal}
+                  onClick={closeAddModal}
                   className="px-4 py-2 text-gray-600 hover:text-gray-900"
                 >
-                  {modalStep === "provider" ? "取消" : "← 上一步"}
+                  取消
                 </button>
                 <button
-                  onClick={modalStep === "provider" ? handleProviderNext : handleTestAndSave}
-                  disabled={modalStep === "config" && (!modalModel || !modalApiKey)}
+                  onClick={handleTestAndSave}
+                  disabled={!modalModel || !modalApiKey}
                   className={cn(
-                    "px-6 py-2 rounded-lg font-medium transition-colors",
-                    modalStep === "config" && (!modalModel || !modalApiKey)
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    "px-5 py-2 rounded-lg font-medium transition-colors",
+                    !modalModel || !modalApiKey
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                       : "bg-blue-600 text-white hover:bg-blue-700"
                   )}
                 >
-                  {modalStep === "provider" ? "下一步 →" : "测试并保存"}
+                  测试并保存
                 </button>
               </div>
             )}
@@ -656,7 +659,7 @@ export default function CapabilityDetailPage() {
             {modalStep === "error" && (
               <div className="px-6 py-4 border-t border-gray-200 flex justify-center">
                 <button
-                  onClick={() => setModalStep("config")}
+                  onClick={() => setModalStep("form")}
                   className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
                 >
                   返回修改
