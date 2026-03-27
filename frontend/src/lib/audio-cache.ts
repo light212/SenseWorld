@@ -119,15 +119,16 @@ export async function cleanupOldAudio(): Promise<void> {
 }
 
 /**
- * 将 base64 音频合并并创建播放 URL
+ * 将 base64 WAV 音频合并并创建播放 URL
+ * WAV 格式：每个文件有 44 字节头部，需要只保留第一个头部，合并所有数据部分
  */
 export function createAudioUrl(audioChunks: string[]): string {
   if (!audioChunks || audioChunks.length === 0) {
     throw new Error('No audio chunks provided');
   }
   
-  // 合并所有 base64 chunks
-  const binaryChunks: Uint8Array[] = [];
+  // 解码所有 base64 chunks
+  const decodedChunks: Uint8Array[] = [];
   for (const chunk of audioChunks) {
     try {
       const binary = atob(chunk);
@@ -135,17 +136,63 @@ export function createAudioUrl(audioChunks: string[]): string {
       for (let i = 0; i < binary.length; i++) {
         bytes[i] = binary.charCodeAt(i);
       }
-      binaryChunks.push(bytes);
+      decodedChunks.push(bytes);
     } catch (e) {
       console.warn('Invalid base64 chunk, skipping');
     }
   }
   
-  if (binaryChunks.length === 0) {
+  if (decodedChunks.length === 0) {
     throw new Error('No valid audio chunks');
   }
   
-  // 合并成一个 Blob
-  const blob = new Blob(binaryChunks, { type: 'audio/wav' });
+  // 如果只有一个 chunk，直接返回
+  if (decodedChunks.length === 1) {
+    const blob = new Blob([decodedChunks[0]], { type: 'audio/wav' });
+    return URL.createObjectURL(blob);
+  }
+  
+  // 多个 WAV 文件需要正确合并
+  // WAV 头部是 44 字节，但某些可能有额外的 chunk
+  // 简单策略：第一个文件完整保留，后续文件跳过 44 字节头部
+  const WAV_HEADER_SIZE = 44;
+  
+  // 计算总数据长度
+  let totalDataLength = decodedChunks[0].length;
+  for (let i = 1; i < decodedChunks.length; i++) {
+    if (decodedChunks[i].length > WAV_HEADER_SIZE) {
+      totalDataLength += decodedChunks[i].length - WAV_HEADER_SIZE;
+    }
+  }
+  
+  // 创建合并后的数组
+  const merged = new Uint8Array(totalDataLength);
+  let offset = decodedChunks[0].length;
+  merged.set(decodedChunks[0], 0);
+  
+  for (let i = 1; i < decodedChunks.length; i++) {
+    if (decodedChunks[i].length > WAV_HEADER_SIZE) {
+      const dataOnly = decodedChunks[i].slice(WAV_HEADER_SIZE);
+      merged.set(dataOnly, offset);
+      offset += dataOnly.length;
+    }
+  }
+  
+  // 更新 WAV 头部中的文件大小字段
+  // 字节 4-7: 文件总大小 - 8
+  const fileSize = merged.length - 8;
+  merged[4] = fileSize & 0xff;
+  merged[5] = (fileSize >> 8) & 0xff;
+  merged[6] = (fileSize >> 16) & 0xff;
+  merged[7] = (fileSize >> 24) & 0xff;
+  
+  // 字节 40-43: 数据大小
+  const dataSize = merged.length - WAV_HEADER_SIZE;
+  merged[40] = dataSize & 0xff;
+  merged[41] = (dataSize >> 8) & 0xff;
+  merged[42] = (dataSize >> 16) & 0xff;
+  merged[43] = (dataSize >> 24) & 0xff;
+  
+  const blob = new Blob([merged], { type: 'audio/wav' });
   return URL.createObjectURL(blob);
 }

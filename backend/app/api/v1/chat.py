@@ -31,6 +31,7 @@ class ChatRequest(BaseModel):
     conversation_id: str
     content: str
     input_type: str = "text"  # "text" or "voice"
+    message_id: str | None = None  # 前端生成的消息 ID（可选）
 
 
 class ChatResponse(BaseModel):
@@ -165,6 +166,7 @@ async def send_message_stream(
 
     # Save user message (流式接口需要显式提交，因为 StreamingResponse 返回后 session 会关闭)
     user_message = Message(
+        id=data.message_id or str(uuid.uuid4()),  # 使用前端传入的 ID 或生成新的
         conversation_id=data.conversation_id,
         role="user",
         content=data.content,
@@ -173,7 +175,7 @@ async def send_message_stream(
     )
     db.add(user_message)
     await db.commit()
-    logger.info(f"Saved user message ({data.input_type}) to conversation {data.conversation_id}")
+    logger.info(f"Saved user message ({data.input_type}) id={user_message.id} to conversation {data.conversation_id}")
 
     # Get recent messages for context
     msg_result = await db.execute(

@@ -148,7 +148,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   }, [activeConversationId, token, setMessages, stopCurrentAudio]);
 
   // 流式聊天请求
-  const streamChat = useCallback(async (text: string, inputType: "text" | "voice" = "text") => {
+  const streamChat = useCallback(async (text: string, inputType: "text" | "voice" = "text", messageId?: string) => {
     if (!activeConversationId || !token) {
       return;
     }
@@ -174,6 +174,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           conversation_id: activeConversationId,
           content: text,
           input_type: inputType,
+          message_id: messageId,
         }),
       });
 
@@ -286,8 +287,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         };
         addMessage(userMessage);
 
-        // 流式调用 chat API（语音输入）
-        await streamChat(confirmedText, "voice");
+        // 流式调用 chat API（语音输入，带 messageId 保证 ID 一致）
+        await streamChat(confirmedText, "voice", messageId);
 
       } catch (error) {
         console.error("Failed to process voice message:", error);
@@ -303,9 +304,11 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       
       setIsSendingMessage(true);
 
+      const messageId = crypto.randomUUID();
+      
       // Add user message to UI immediately
       const userMessage: Message = {
-        id: crypto.randomUUID(),
+        id: messageId,
         conversationId: activeConversationId,
         role: "user",
         content: text,
@@ -316,7 +319,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       addMessage(userMessage);
 
       // 流式调用 chat API（文本输入）
-      await streamChat(text, "text");
+      await streamChat(text, "text", messageId);
     },
     [activeConversationId, addMessage, setIsSendingMessage, streamChat]
   );
