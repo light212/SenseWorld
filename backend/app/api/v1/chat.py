@@ -18,7 +18,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user_id
 from app.models.conversation import Conversation
 from app.models.message import Message
-from app.services.llm_service import get_llm_service
+from app.services.llm_service import get_llm_service, get_llm_service_from_db
 from app.services.tts_service import get_tts_service
 
 logger = logging.getLogger(__name__)
@@ -188,7 +188,8 @@ async def send_message_stream(
     ]
 
     async def generate_stream():
-        llm_service = get_llm_service()
+        # 从数据库获取 LLM 配置
+        llm_service = await get_llm_service_from_db(db)
         tts_service = get_tts_service()
 
         full_response = ""

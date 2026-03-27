@@ -205,3 +205,45 @@ class ConfigService:
         )
         setting = result.scalar_one_or_none()
         return setting.value if setting else default_value
+
+    async def get_default_model_config(self, model_type: str) -> Optional[dict]:
+        """获取默认模型的完整配置（包括 api_key, base_url 等）"""
+        from app.models.model_config import ModelConfig
+        
+        result = await self.db.execute(
+            select(ModelConfig).where(
+                ModelConfig.model_type == model_type,
+                ModelConfig.is_default == True,
+                ModelConfig.is_active == True,
+            )
+        )
+        config = result.scalar_one_or_none()
+        
+        if not config:
+            # 没有默认的，取第一个激活的
+            result = await self.db.execute(
+                select(ModelConfig).where(
+                    ModelConfig.model_type == model_type,
+                    ModelConfig.is_active == True,
+                ).limit(1)
+            )
+            config = result.scalar_one_or_none()
+        
+        if not config:
+            return None
+        
+        # 解密 API key
+        api_key = None
+        if config.api_key_encrypted:
+            api_key = self.encryption.decrypt(config.api_key_encrypted)
+        elif config.config and config.config.get("api_key"):
+            api_key = config.config.get("api_key")
+        
+        return {
+            "model_name": config.model_name,
+            "provider": config.provider,
+            "api_key": api_key,
+            "base_url": config.config.get("base_url") if config.config else None,
+            "protocol": config.config.get("protocol") if config.config else "openai_compatible",
+            "config": config.config,
+        }
