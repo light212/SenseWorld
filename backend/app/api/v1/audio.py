@@ -30,24 +30,24 @@ async def get_message_audio(
         select(Message).where(Message.id == message_id)
     )
     message = result.scalar_one_or_none()
-    
+
     if not message:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Message not found",
         )
-    
+
     # Only allow audio for assistant messages
     if message.role != "assistant":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Audio only available for assistant messages",
         )
-    
+
     # Generate audio
     tts_service = get_tts_service()
     audio_data = await tts_service.synthesize(text=message.content)
-    
+
     return Response(
         content=audio_data,
         media_type="audio/wav",

@@ -3,14 +3,12 @@ Request log service.
 """
 
 import re
-
 from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.request_log import RequestLog
-
 
 MAX_BODY_LENGTH = 2000
 SENSITIVE_PATTERN = re.compile(
@@ -152,7 +150,7 @@ class RequestLogService:
             }
 
         n = len(latencies)
-        
+
         def percentile(data: list, p: float) -> int:
             idx = int(p * (len(data) - 1))
             return int(data[idx])

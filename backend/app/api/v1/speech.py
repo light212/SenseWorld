@@ -30,7 +30,7 @@ async def transcribe_audio(
 
     # Read audio data
     content = await audio.read()
-    
+
     # Validate file size (25MB max)
     if len(content) > 25 * 1024 * 1024:
         raise HTTPException(
@@ -65,7 +65,7 @@ async def synthesize_speech(
     Note: Auth temporarily disabled for testing.
     """
     tts_service = get_tts_service()
-    
+
     # 使用完整音频响应，避免流式响应空数据问题
     audio_data = await tts_service.synthesize(
         text=data.text,

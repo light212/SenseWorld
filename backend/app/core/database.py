@@ -4,12 +4,11 @@ Database configuration and session management.
 
 from typing import AsyncGenerator
 
+import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-import redis.asyncio as redis
 
 from app.config import settings
-
 
 # Create async engine
 engine = create_async_engine(

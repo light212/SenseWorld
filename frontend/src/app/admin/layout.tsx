@@ -2,19 +2,35 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { BarChart3, FileText, LayoutDashboard, LogOut, Menu, Monitor, Settings, Sliders, X } from "lucide-react";
+import { BarChart3, FileText, LayoutDashboard, LogOut, Menu, Monitor, Settings, Sliders } from "lucide-react";
 import { useAuthStore, useAuthHydration } from "@/stores/authStore";
 import { AlertBadge } from "@/components/admin/AlertBadge";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const navItems = [
-  { href: "/admin/dashboard", icon: LayoutDashboard, label: "仪表盘" },
-  { href: "/admin/models", icon: Settings, label: "模型配置" },
-  { href: "/admin/usage", icon: BarChart3, label: "用量监控" },
-  { href: "/admin/logs", icon: FileText, label: "请求日志" },
-  { href: "/admin/settings", icon: Sliders, label: "系统设置" },
-  { href: "/admin/terminals", icon: Monitor, label: "终端管理" },
+  { href: "/admin/dashboard", icon: LayoutDashboard, label: "概览" },
+  { href: "/admin/ai-config", icon: Settings, label: "AI 配置" },
+  { href: "/admin/billing", icon: BarChart3, label: "费用与统计" },
+  { href: "/admin/troubleshoot", icon: FileText, label: "问题排查" },
 ];
+
+// 导航项颜色
+const navColors: Record<string, { bg: string; text: string; icon: string }> = {
+  "/admin/dashboard": { bg: "bg-blue-50", text: "text-blue-700", icon: "text-blue-500" },
+  "/admin/models": { bg: "bg-purple-50", text: "text-purple-700", icon: "text-purple-500" },
+  "/admin/usage": { bg: "bg-green-50", text: "text-green-700", icon: "text-green-500" },
+  "/admin/logs": { bg: "bg-amber-50", text: "text-amber-700", icon: "text-amber-500" },
+  "/admin/settings": { bg: "bg-gray-100", text: "text-gray-700", icon: "text-gray-500" },
+  "/admin/terminals": { bg: "bg-cyan-50", text: "text-cyan-700", icon: "text-cyan-500" },
+};
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/v1";
@@ -46,7 +62,7 @@ export default function AdminLayout({
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        
+
         if (response.ok) {
           const user = await response.json();
           if (user.role !== "admin") {
@@ -81,8 +97,8 @@ export default function AdminLayout({
 
   if (!hydrated || checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-gray-500">加载中...</div>
+      <div className="min-h-screen flex items-center justify-center bg-muted">
+        <div className="text-muted-foreground">加载中...</div>
       </div>
     );
   }
@@ -92,79 +108,90 @@ export default function AdminLayout({
     return null;
   }
 
-  return (
-    <div className="h-screen flex bg-gray-100 overflow-hidden">
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r transform transition-transform lg:translate-x-0 lg:static",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <Settings className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-semibold text-gray-900">管理后台</span>
+  const NavContent = () => (
+    <>
+      {/* Logo */}
+      <div className="h-16 flex items-center justify-between px-5 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center shadow-sm">
+            <Settings className="w-5 h-5 text-white" />
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1 hover:bg-gray-100 rounded"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <span className="font-semibold text-gray-900">SenseWorld</span>
         </div>
+      </div>
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <button
-                key={item.href}
-                onClick={() => {
-                  router.push(item.href);
-                  setSidebarOpen(false);
-                }}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors",
-                  isActive
-                    ? "bg-blue-50 text-blue-600 font-medium"
-                    : "text-gray-600 hover:bg-gray-50"
-                )}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
+      {/* Navigation */}
+      <nav className="p-3 space-y-1 flex-1">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href;
+          const colors = navColors[item.href] || { bg: "bg-gray-100", text: "text-gray-700", icon: "text-gray-500" };
+          return (
+            <button
+              key={item.href}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                isActive 
+                  ? `${colors.bg} ${colors.text}` 
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              )}
+              onClick={() => {
+                router.push(item.href);
+                setSidebarOpen(false);
+              }}
+            >
+              <item.icon className={cn("w-5 h-5", isActive ? colors.icon : "text-gray-400")} />
+              {item.label}
+              {isActive && (
+                <div className={cn("ml-auto w-1.5 h-1.5 rounded-full", colors.icon.replace("text-", "bg-"))} />
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
-        {/* Logout */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-            退出登录
-          </button>
-        </div>
+      {/* Logout */}
+      <div className="p-3 border-t border-gray-100">
+        <button
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+          onClick={handleLogout}
+        >
+          <LogOut className="w-5 h-5" />
+          退出登录
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex w-60 bg-white shadow-sm flex-col">
+        <NavContent />
       </aside>
+
+      {/* Mobile Sidebar using Sheet */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-60 p-0 flex flex-col">
+          <SheetHeader className="sr-only">
+            <SheetTitle>导航菜单</SheetTitle>
+          </SheetHeader>
+          <NavContent />
+        </SheetContent>
+      </Sheet>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b flex items-center px-4 lg:px-6 shrink-0">
-          <button
+        <header className="h-16 bg-white shadow-xs flex items-center px-4 lg:px-6 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-1 hover:bg-gray-100 rounded"
           >
             <Menu className="w-6 h-6" />
-          </button>
-          <h1 className="ml-4 lg:ml-0 font-semibold text-gray-900">
+          </Button>
+          <h1 className="ml-4 lg:ml-0 text-lg font-semibold text-gray-900">
             {navItems.find((item) => item.href === pathname)?.label || "管理后台"}
           </h1>
           <div className="ml-auto">
@@ -173,16 +200,8 @@ export default function AdminLayout({
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>
+        <main className="flex-1 p-6 overflow-auto">{children}</main>
       </div>
-
-      {/* Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
     </div>
   );
 }

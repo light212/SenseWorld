@@ -1,9 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Edit, X, Check, Loader2, ToggleLeft, ToggleRight, Star, MoreVertical } from "lucide-react";
+import { Trash2, Edit, Check, Loader2, ToggleLeft, ToggleRight, Star, Settings, Zap } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/Toast";
+import { apiClient } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface ModelConfig {
   id: string;
@@ -27,7 +58,8 @@ interface TestResult {
 const modelTypes = ["llm", "asr", "tts", "vd"];
 const providers = ["dashscope", "openai", "other"];
 
-// 调用方式
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/v1";
+
 const protocols = [
   { id: "openai_compatible", label: "OpenAI 兼容", description: "标准 Chat Completions API" },
   { id: "dashscope_sdk", label: "DashScope SDK", description: "阿里云 SDK 调用" },
@@ -43,13 +75,26 @@ const modelTypeLabels: Record<string, string> = {
   vd: "视频理解",
 };
 
-// 终端类型
-const terminalTypes = [
-  { id: "web", label: "Web", available: true },
-  { id: "ios", label: "iOS", available: false, hint: "即将支持" },
-  { id: "android", label: "Android", available: false, hint: "即将支持" },
-  { id: "miniprogram", label: "小程序", available: false, hint: "即将支持" },
-];
+// 场景配置
+const SCENE_CONFIGS = {
+  "voice-chat": {
+    name: "语音对话",
+    description: "实时语音对话，包含语音识别和语音合成",
+    models: [
+      { model_type: "asr", model_name: "qwen-asr-websocket", provider: "dashscope", config: { protocol: "websocket", format: "pcm", sample_rate: 16000 } },
+      { model_type: "tts", model_name: "qwen-tts-websocket", provider: "dashscope", config: { protocol: "websocket", voice: "Cherry", format: "wav" } },
+    ],
+  },
+  "video-chat": {
+    name: "视频对话",
+    description: "视频理解+语音对话，适合视频通话场景",
+    models: [
+      { model_type: "vd", model_name: "qwen-vd-websocket", provider: "dashscope", config: { protocol: "websocket", resolution: "720p", fps: 30 } },
+      { model_type: "asr", model_name: "qwen-asr-websocket", provider: "dashscope", config: { protocol: "websocket", format: "pcm", sample_rate: 16000 } },
+      { model_type: "tts", model_name: "qwen-tts-websocket", provider: "dashscope", config: { protocol: "websocket", voice: "Cherry", format: "wav" } },
+    ],
+  },
+};
 
 // 根据调用方式返回配置字段
 const getProtocolFields = (protocol: string) => {
@@ -64,7 +109,6 @@ const getProtocolFields = (protocol: string) => {
       return [
         { key: "api_key", label: "API Key", placeholder: "DashScope API Key" },
         { key: "model", label: "模型名称", placeholder: "qwen-turbo" },
-        { key: "voice", label: "语音（TTS）", placeholder: "Cherry" },
       ];
     case "websocket":
       return [
@@ -74,7 +118,6 @@ const getProtocolFields = (protocol: string) => {
     case "custom_http":
       return [
         { key: "url", label: "API URL", placeholder: "https://..." },
-        { key: "headers", label: "请求头 (JSON)", placeholder: '{"Authorization": "Bearer ..."}' },
         { key: "auth_type", label: "认证方式", placeholder: "bearer / api_key" },
       ];
     default:
@@ -83,11 +126,13 @@ const getProtocolFields = (protocol: string) => {
 };
 
 export default function AdminModelsPage() {
+  const toast = useToast();
   const { token } = useAuthStore();
   const [configs, setConfigs] = useState<ModelConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showSceneDialog, setShowSceneDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
@@ -100,20 +145,31 @@ export default function AdminModelsPage() {
     config: {} as Record<string, any>,
   });
 
+  // 批量操作状态
+  const [selectedConfigs, setSelectedConfigs] = useState<Set<string>>(new Set());
+
+  // 操作 loading 状态
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [batchOperating, setBatchOperating] = useState(false);
+
   useEffect(() => {
     fetchConfigs();
   }, [token]);
 
   const fetchConfigs = async () => {
     try {
-      const response = await fetch("http://localhost:8000/v1/admin/models", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setConfigs(data);
-      }
+      const data = await apiClient.request<ModelConfig[]>(
+        `${API_BASE_URL}/admin/models`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          showLoading: true,
+          showError: true,
+          errorMessage: "加载模型配置失败",
+        },
+        toast
+      );
+      setConfigs(data);
     } catch (error) {
       console.error("Failed to fetch configs:", error);
     } finally {
@@ -122,76 +178,118 @@ export default function AdminModelsPage() {
   };
 
   const handleCreate = async () => {
+    if (!isFormValid()) {
+      toast?.warning("请填写模型名称并确保 JSON 格式正确");
+      return;
+    }
+    setSaving(true);
     try {
       const config = JSON.parse(configJson);
-      const response = await fetch("http://localhost:8000/v1/admin/models", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      await apiClient.request<ModelConfig>(
+        `${API_BASE_URL}/admin/models`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ ...formData, config }),
+          showSuccess: true,
+          successMessage: "模型配置创建成功",
+          errorMessage: "创建模型配置失败",
         },
-        body: JSON.stringify({ ...formData, config }),
-      });
-
-      if (response.ok) {
-        setShowCreate(false);
-        resetForm();
-        fetchConfigs();
-      } else {
-        const error = await response.json();
-        alert(error.detail || "创建失败");
-      }
+        toast
+      );
+      setShowCreate(false);
+      resetForm();
+      fetchConfigs();
     } catch (error) {
       console.error("Failed to create config:", error);
-      alert("操作失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateSceneConfigs = async (sceneId: string) => {
+    const scene = SCENE_CONFIGS[sceneId as keyof typeof SCENE_CONFIGS];
+    if (!scene) return;
+
+    try {
+      const createPromises = scene.models.map((modelConfig) =>
+        fetch(`${API_BASE_URL}/admin/models`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(modelConfig),
+        })
+      );
+
+      const results = await Promise.all(createPromises);
+      const successCount = results.filter((r) => r.ok).length;
+
+      if (successCount === scene.models.length) {
+        toast?.success(`成功创建 ${successCount} 个模型配置`);
+        setShowSceneDialog(false);
+        fetchConfigs();
+      } else {
+        toast?.error(`部分配置创建失败: ${successCount}/${scene.models.length} 成功`);
+      }
+    } catch (error) {
+      console.error("Failed to create scene configs:", error);
+      toast?.error("批量创建失败");
     }
   };
 
   const handleUpdate = async (id: string) => {
     try {
       const config = JSON.parse(configJson);
-      const response = await fetch(`http://localhost:8000/v1/admin/models/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      await apiClient.request<ModelConfig>(
+        `${API_BASE_URL}/admin/models/${id}`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ ...formData, config }),
+          showSuccess: true,
+          successMessage: "模型配置更新成功",
+          errorMessage: "更新模型配置失败",
         },
-        body: JSON.stringify({ ...formData, config }),
-      });
-
-      if (response.ok) {
-        setEditingId(null);
-        resetForm();
-        fetchConfigs();
-      } else {
-        const error = await response.json();
-        alert(error.detail || "更新失败");
-      }
+        toast
+      );
+      setEditingId(null);
+      resetForm();
+      fetchConfigs();
     } catch (error) {
       console.error("Failed to update config:", error);
-      alert("操作失败");
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    setDeleting(true);
     try {
-      const response = await fetch(`http://localhost:8000/v1/admin/models/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/models/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
+        toast?.success("配置删除成功");
         setDeleteConfirm(null);
         fetchConfigs();
+      } else {
+        toast?.error("删除失败");
       }
     } catch (error) {
       console.error("Failed to delete config:", error);
+      toast?.error("删除失败");
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleToggleActive = async (config: ModelConfig) => {
     try {
-      const response = await fetch(`http://localhost:8000/v1/admin/models/${config.id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/models/${config.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -201,25 +299,33 @@ export default function AdminModelsPage() {
       });
 
       if (response.ok) {
+        toast?.success(config.is_active ? "已禁用" : "已启用");
         fetchConfigs();
+      } else {
+        toast?.error("操作失败");
       }
     } catch (error) {
       console.error("Failed to toggle active:", error);
+      toast?.error("操作失败");
     }
   };
 
   const handleSetDefault = async (config: ModelConfig) => {
     try {
-      const response = await fetch(`http://localhost:8000/v1/admin/models/${config.id}/set-default`, {
+      const response = await fetch(`${API_BASE_URL}/admin/models/${config.id}/set-default`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
+        toast?.success("已设为默认配置");
         fetchConfigs();
+      } else {
+        toast?.error("设置默认失败");
       }
     } catch (error) {
       console.error("Failed to set default:", error);
+      toast?.error("设置默认失败");
     }
   };
 
@@ -228,7 +334,7 @@ export default function AdminModelsPage() {
     setTestResults((prev) => ({ ...prev, [config.id]: { success: false, message: "测试中..." } }));
 
     try {
-      const response = await fetch("http://localhost:8000/v1/admin/models/test", {
+      const response = await fetch(`${API_BASE_URL}/admin/models/test`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -277,117 +383,305 @@ export default function AdminModelsPage() {
     setConfigJson("{}");
   };
 
+  // 同步动态配置字段到 JSON
+  const updateConfigField = (key: string, value: string) => {
+    const newConfig = { ...formData.config, [key]: value };
+    setFormData({ ...formData, config: newConfig });
+    setConfigJson(JSON.stringify(newConfig, null, 2));
+  };
+
+  // 批量操作
+  const handleBatchToggleActive = async (active: boolean) => {
+    if (selectedConfigs.size === 0) return;
+    setBatchOperating(true);
+    try {
+      const promises = Array.from(selectedConfigs).map(id =>
+        fetch(`${API_BASE_URL}/admin/models/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ is_active: active }),
+        })
+      );
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r.ok).length;
+      if (successCount === selectedConfigs.size) {
+        toast?.success(`成功${active ? '启用' : '禁用'} ${successCount} 个配置`);
+        setSelectedConfigs(new Set());
+        fetchConfigs();
+      } else {
+        toast?.error(`部分操作失败: ${successCount}/${selectedConfigs.size} 成功`);
+      }
+    } catch (error) {
+      toast?.error("批量操作失败");
+    } finally {
+      setBatchOperating(false);
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedConfigs.size === 0) return;
+    setBatchOperating(true);
+    try {
+      const promises = Array.from(selectedConfigs).map(id =>
+        fetch(`${API_BASE_URL}/admin/models/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      );
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r.ok).length;
+      if (successCount === selectedConfigs.size) {
+        toast?.success(`成功删除 ${successCount} 个配置`);
+        setSelectedConfigs(new Set());
+        fetchConfigs();
+      } else {
+        toast?.error(`部分删除失败: ${successCount}/${selectedConfigs.size} 成功`);
+      }
+    } catch (error) {
+      toast?.error("批量删除失败");
+    } finally {
+      setBatchOperating(false);
+    }
+  };
+
+  // JSON 验证
+  const isJsonValid = () => {
+    try {
+      JSON.parse(configJson);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // 表单验证
+  const isFormValid = () => {
+    return isJsonValid() && formData.model_name.trim().length > 0;
+  };
+
   if (loading) {
-    return <div className="text-gray-500">加载中...</div>;
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-400">
+        <Loader2 className="w-6 h-6 animate-spin mr-2" />
+        加载中...
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">模型配置</h1>
-        <button
-          onClick={() => {
-            setShowCreate(true);
-            resetForm();
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          新增配置
-        </button>
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">模型配置</h1>
+          <p className="text-sm text-gray-500 mt-1">管理 AI 模型的 API 配置</p>
+        </div>
+        <div className="flex gap-2 items-center">
+          {/* 批量操作 */}
+          {selectedConfigs.size > 0 && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBatchToggleActive(true)}
+                disabled={batchOperating}
+                className="text-green-600 border-green-200 hover:bg-green-50"
+              >
+                批量启用 ({selectedConfigs.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBatchToggleActive(false)}
+                disabled={batchOperating}
+                className="text-amber-600 border-amber-200 hover:bg-amber-50"
+              >
+                批量禁用 ({selectedConfigs.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBatchDelete}
+                disabled={batchOperating}
+                className="text-red-600 border-red-200 hover:bg-red-50"
+              >
+                批量删除 ({selectedConfigs.size})
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedConfigs(new Set())}
+              >
+                取消选择
+              </Button>
+            </>
+          )}
+          <Button onClick={() => setShowSceneDialog(true)}>
+            <Zap className="w-4 h-4" />
+            快速创建
+          </Button>
+          <Button variant="outline" onClick={() => { setShowCreate(true); resetForm(); }}>
+            <Settings className="w-4 h-4" />
+            高级创建
+          </Button>
+        </div>
       </div>
 
-      {/* Create/Edit Form */}
-      {(showCreate || editingId) && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-medium mb-4">
-            {showCreate ? "新增模型配置" : "编辑模型配置"}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* 模型类型 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">模型类型</label>
-              <select
-                value={formData.model_type}
-                onChange={(e) => setFormData({ ...formData, model_type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      {/* 统计信息 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3">
+            <Settings className="w-5 h-5 text-blue-500" />
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{configs.length}</div>
+          <div className="text-sm text-gray-500 mt-1">总配置数</div>
+        </div>
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center mb-3">
+            <ToggleRight className="w-5 h-5 text-green-500" />
+          </div>
+          <div className="text-2xl font-bold text-green-600">{configs.filter((c) => c.is_active).length}</div>
+          <div className="text-sm text-gray-500 mt-1">启用配置</div>
+        </div>
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center mb-3">
+            <Star className="w-5 h-5 text-amber-500" />
+          </div>
+          <div className="text-2xl font-bold text-amber-600">{configs.filter((c) => c.is_default).length}</div>
+          <div className="text-sm text-gray-500 mt-1">默认配置</div>
+        </div>
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center mb-3">
+            <Check className="w-5 h-5 text-purple-500" />
+          </div>
+          <div className="text-2xl font-bold text-purple-600">
+            {Object.values(testResults).filter((r) => r.success).length}/{configs.length}
+          </div>
+          <div className="text-sm text-gray-500 mt-1">连接正常</div>
+        </div>
+      </div>
+
+      {/* 场景选择对话框 */}
+      <Dialog open={showSceneDialog} onOpenChange={setShowSceneDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>选择配置场景</DialogTitle>
+            <DialogDescription>根据您的使用场景选择预置配置，快速创建模型</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            {Object.entries(SCENE_CONFIGS).map(([id, scene]) => (
+              <button
+                key={id}
+                type="button"
+                className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-primary hover:bg-muted/50 transition-colors"
+                onClick={() => handleCreateSceneConfigs(id)}
               >
-                {modelTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {modelTypeLabels[type] || type.toUpperCase()}
-                  </option>
-                ))}
-              </select>
+                <div className="font-medium">{scene.name}</div>
+                <div className="text-sm text-muted-foreground mt-1">{scene.description}</div>
+                <div className="flex gap-2 mt-2">
+                  {scene.models.map((model, idx) => (
+                    <Badge key={idx} variant="secondary">
+                      {modelTypeLabels[model.model_type]}
+                    </Badge>
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 创建/编辑对话框 */}
+      <Dialog open={showCreate || !!editingId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditingId(null); resetForm(); } }}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{showCreate ? "新增模型配置" : "编辑模型配置"}</DialogTitle>
+            <DialogDescription>配置模型参数和调用方式</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              {/* 模型类型 */}
+              <div className="space-y-2">
+                <Label>模型类型</Label>
+                <Select
+                  value={formData.model_type}
+                  onValueChange={(v) => v && setFormData({ ...formData, model_type: v })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {modelTypeLabels[type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 提供商 */}
+              <div className="space-y-2">
+                <Label>提供商</Label>
+                <Select
+                  value={formData.provider}
+                  onValueChange={(v) => v && setFormData({ ...formData, provider: v })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providers.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            
-            {/* 提供商 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">提供商</label>
-              <select
-                value={formData.provider}
-                onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {providers.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-            
+
             {/* 模型名称 */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">模型名称</label>
-              <input
-                type="text"
+            <div className="space-y-2">
+              <Label>模型名称</Label>
+              <Input
                 value={formData.model_name}
                 onChange={(e) => setFormData({ ...formData, model_name: e.target.value })}
                 placeholder="qwen3-tts-instruct-flash"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             {/* 调用方式 */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">调用方式</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="space-y-2">
+              <Label>调用方式</Label>
+              <div className="grid grid-cols-2 gap-2">
                 {protocols.map((p) => (
-                  <button
+                  <Button
                     key={p.id}
-                    type="button"
+                    variant={formData.protocol === p.id ? "default" : "outline"}
+                    className="h-auto py-3 justify-start"
                     onClick={() => setFormData({ ...formData, protocol: p.id })}
-                    className={cn(
-                      "p-3 rounded-lg border text-left transition-colors",
-                      formData.protocol === p.id
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    )}
                   >
-                    <div className="font-medium text-sm">{p.label}</div>
-                    <div className="text-xs text-gray-500 mt-1">{p.description}</div>
-                  </button>
+                    <div className="text-left">
+                      <div className="font-medium">{p.label}</div>
+                      <div className="text-xs opacity-70">{p.description}</div>
+                    </div>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* 动态配置字段 */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">配置参数</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>配置参数</Label>
+              <div className="grid grid-cols-2 gap-3">
                 {getProtocolFields(formData.protocol).map((field) => (
-                  <div key={field.key}>
-                    <label className="block text-xs text-gray-600 mb-1">{field.label}</label>
-                    <input
-                      type="text"
+                  <div key={field.key} className="space-y-1">
+                    <Label className="text-xs">{field.label}</Label>
+                    <Input
                       placeholder={field.placeholder}
                       value={formData.config?.[field.key] || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          config: { ...formData.config, [field.key]: e.target.value },
-                        })
-                      }
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => updateConfigField(field.key, e.target.value)}
                     />
                   </div>
                 ))}
@@ -395,220 +689,207 @@ export default function AdminModelsPage() {
             </div>
 
             {/* 高级配置 (JSON) */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                高级配置 (JSON)
-              </label>
-              <textarea
-                value={configJson}
-                onChange={(e) => setConfigJson(e.target.value)}
-                rows={3}
-                placeholder='{"custom_field": "value"}'
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-              />
-            </div>
-
-            {/* 终端类型 */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                适用终端
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {terminalTypes.map((terminal) => (
-                  <button
-                    key={terminal.id}
-                    type="button"
-                    disabled={!terminal.available}
-                    className={cn(
-                      "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                      terminal.available
-                        ? "bg-blue-500 text-white hover:bg-blue-600"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    )}
-                    title={terminal.available ? "" : terminal.hint}
-                  >
-                    {terminal.label}
-                    {!terminal.available && (
-                      <span className="ml-1 text-xs">({terminal.hint})</span>
-                    )}
-                  </button>
-                ))}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label>高级配置 (JSON)</Label>
+                <span className={cn("text-xs", isJsonValid() ? "text-green-600" : "text-red-600")}>
+                  {isJsonValid() ? "✓ 有效JSON" : "✗ 无效JSON"}
+                </span>
               </div>
+              <Textarea
+                value={configJson}
+                onChange={(e) => {
+                  setConfigJson(e.target.value);
+                  // 尝试解析并同步到 formData
+                  try {
+                    const parsed = JSON.parse(e.target.value);
+                    setFormData(prev => ({ ...prev, config: parsed }));
+                  } catch {
+                    // 解析失败时不更新 formData
+                  }
+                }}
+                rows={6}
+                className={cn("font-mono text-sm", !isJsonValid() && "border-red-500")}
+                placeholder='{"key": "value"}'
+              />
+              {!isJsonValid() && (
+                <p className="text-xs text-red-600">JSON格式不正确，请检查语法</p>
+              )}
             </div>
           </div>
-
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={() => (showCreate ? handleCreate() : handleUpdate(editingId!))}
-              className="flex items-center gap-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCreate(false); setEditingId(null); resetForm(); }}>
+              取消
+            </Button>
+            <Button onClick={() => (showCreate ? handleCreate() : handleUpdate(editingId!))} disabled={!isFormValid() || saving}>
+              {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
               <Check className="w-4 h-4" />
               保存
-            </button>
-            <button
-              onClick={() => {
-                setShowCreate(false);
-                setEditingId(null);
-                resetForm();
-              }}
-              className="flex items-center gap-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
-            >
-              <X className="w-4 h-4" />
-              取消
-            </button>
-          </div>
-        </div>
-      )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">类型</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">模型名称</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">提供商</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">调用方式</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">终端</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">状态</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">默认</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">测试</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-500">操作</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
+      {/* 表格 */}
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">
+                <input
+                  type="checkbox"
+                  checked={selectedConfigs.size === configs.length && configs.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedConfigs(new Set(configs.map((c) => c.id)));
+                    } else {
+                      setSelectedConfigs(new Set());
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+              </TableHead>
+              <TableHead>类型</TableHead>
+              <TableHead>模型名称</TableHead>
+              <TableHead>提供商</TableHead>
+              <TableHead>调用方式</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>默认</TableHead>
+              <TableHead>测试</TableHead>
+              <TableHead className="text-right">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {configs.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                  暂无配置，点击"新增配置"添加
-                </td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                  暂无配置，点击"快速创建"或"高级创建"添加
+                </TableCell>
+              </TableRow>
             ) : (
               configs.map((config) => (
-                <tr key={config.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "inline-flex px-2 py-1 text-xs font-medium rounded",
-                        config.model_type === "llm" && "bg-blue-100 text-blue-700",
-                        config.model_type === "asr" && "bg-green-100 text-green-700",
-                        config.model_type === "tts" && "bg-purple-100 text-purple-700",
-                        config.model_type === "vd" && "bg-orange-100 text-orange-700"
-                      )}
+                <TableRow key={config.id}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selectedConfigs.has(config.id)}
+                      onChange={() => {
+                        const newSelection = new Set(selectedConfigs);
+                        if (newSelection.has(config.id)) {
+                          newSelection.delete(config.id);
+                        } else {
+                          newSelection.add(config.id);
+                        }
+                        setSelectedConfigs(newSelection);
+                      }}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        config.model_type === "llm"
+                          ? "default"
+                          : config.model_type === "asr"
+                          ? "secondary"
+                          : "outline"
+                      }
                     >
                       {modelTypeLabels[config.model_type] || config.model_type.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{config.model_name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{config.provider}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-gray-600">
-                      {protocols.find((p) => p.id === config.protocol)?.label || config.protocol}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-blue-50 text-blue-600">
-                      Web
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">{config.model_name}</TableCell>
+                  <TableCell className="text-muted-foreground">{config.provider}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {protocols.find((p) => p.id === config.protocol)?.label || config.protocol}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleToggleActive(config)}
-                      className={cn(
-                        "flex items-center gap-1 text-xs font-medium transition-colors",
-                        config.is_active ? "text-green-600" : "text-gray-400"
-                      )}
+                      className={cn(config.is_active ? "text-green-600" : "text-muted-foreground")}
                     >
                       {config.is_active ? (
                         <>
-                          <ToggleRight className="w-4 h-4" />
+                          <ToggleRight className="w-4 h-4 mr-1" />
                           启用
                         </>
                       ) : (
                         <>
-                          <ToggleLeft className="w-4 h-4" />
+                          <ToggleLeft className="w-4 h-4 mr-1" />
                           禁用
                         </>
                       )}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleSetDefault(config)}
-                      className={cn(
-                        "flex items-center gap-1 text-xs font-medium transition-colors",
-                        config.is_default ? "text-yellow-600" : "text-gray-400 hover:text-gray-600"
-                      )}
+                      className={cn(config.is_default ? "text-yellow-600" : "text-muted-foreground")}
                     >
                       <Star className={cn("w-4 h-4", config.is_default && "fill-yellow-500")} />
-                      {config.is_default ? "默认" : "设为默认"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleTest(config)}
                       disabled={testingId === config.id}
-                      className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                      className="text-blue-600"
                     >
                       {testingId === config.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin inline" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                       ) : testResults[config.id]?.success ? (
-                        <span className="text-green-600">✓ {testResults[config.id].latency_ms}ms</span>
+                        <span className="text-green-600 text-xs">✓ {testResults[config.id].latency_ms}ms</span>
                       ) : testResults[config.id] ? (
                         <span className="text-red-600 text-xs">{testResults[config.id].message}</span>
                       ) : (
                         "测试"
                       )}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => startEdit(config)}
-                        className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-                      >
+                    </Button>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon-sm" onClick={() => startEdit(config)}>
                         <Edit className="w-4 h-4" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive hover:text-destructive"
                         onClick={() => setDeleteConfirm(config.id)}
-                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-medium mb-2">确认删除</h3>
-            <p className="text-gray-500 text-sm mb-4">
-              确定要删除这个模型配置吗？此操作不可撤销。
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
-              >
-                取消
-              </button>
-              <button
-                onClick={() => handleDelete(deleteConfirm)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-              >
-                删除
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 删除确认对话框 */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>确定要删除这个模型配置吗？此操作不可撤销。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>取消</Button>
+            <Button variant="destructive" onClick={() => { if (deleteConfirm) handleDelete(deleteConfirm); }} disabled={deleting}>
+              {deleting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

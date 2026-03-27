@@ -3,9 +3,8 @@ ASR (Automatic Speech Recognition) service using Aliyun DashScope.
 """
 
 import logging
-import base64
-import tempfile
 import os
+import tempfile
 from dataclasses import dataclass
 from typing import Optional
 
@@ -54,14 +53,14 @@ class ASRService:
             TranscriptionResult with text and metadata
         """
         import asyncio
-        
+
         try:
             # 保存到临时文件
             suffix = os.path.splitext(filename)[1] or ".webm"
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
                 f.write(audio_data)
                 temp_path = f.name
-            
+
             try:
                 # 在线程池中运行同步调用
                 loop = asyncio.get_event_loop()
@@ -83,9 +82,9 @@ class ASRService:
                         }
                     )
                 )
-                
+
                 logger.info(f"ASR response: {response}")
-                
+
                 if response.status_code == 200:
                     # 提取转写文本
                     output = response.output
@@ -105,21 +104,21 @@ class ASRService:
                                     text=content,
                                     language=language,
                                 )
-                    
+
                     # 尝试其他格式
                     if hasattr(output, 'text'):
                         return TranscriptionResult(
                             text=output.text,
                             language=language,
                         )
-                    
+
                     logger.error(f"Cannot parse ASR response: {response}")
-                    raise Exception(f"Cannot parse ASR response")
+                    raise Exception("Cannot parse ASR response")
                 else:
                     error_msg = getattr(response, 'message', str(response))
                     logger.error(f"ASR failed: {response.status_code} - {error_msg}")
                     raise Exception(f"ASR failed: {error_msg}")
-                    
+
             finally:
                 # 清理临时文件
                 os.unlink(temp_path)

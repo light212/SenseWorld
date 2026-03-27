@@ -5,8 +5,7 @@ UsageLog ORM model.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Numeric, String
-from sqlalchemy import JSON
+from sqlalchemy import JSON, DateTime, Numeric, String
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import Mapped, mapped_column
 

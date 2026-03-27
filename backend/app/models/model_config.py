@@ -5,8 +5,7 @@ ModelConfig ORM model for storing LLM/AI model configurations.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Numeric, String, Text
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Boolean, DateTime, Numeric, String, Text
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import Mapped, mapped_column
 

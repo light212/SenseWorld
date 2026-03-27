@@ -10,7 +10,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session_maker, get_redis
 from app.core.security import decode_access_token
@@ -86,7 +85,7 @@ async def websocket_endpoint(
     """WebSocket endpoint for real-time chat."""
     # 必须先 accept 连接，然后才能发送消息或关闭
     await websocket.accept()
-    
+
     # Verify token
     user_id = await verify_token(token)
     if not user_id:

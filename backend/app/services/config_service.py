@@ -41,7 +41,10 @@ class ConfigService:
         payload = {**data}
         api_key = payload.pop("api_key", None)
         if api_key:
-            payload["api_key_encrypted"] = encrypt_text(api_key)
+            try:
+                payload["api_key_encrypted"] = encrypt_text(api_key)
+            except ValueError as e:
+                raise ValueError(f"Cannot encrypt API key: {e}") from e
 
         config = ModelConfig(**payload)
         self.db.add(config)
@@ -58,7 +61,10 @@ class ConfigService:
     async def update_config(self, config: ModelConfig, data: dict) -> ModelConfig:
         api_key = data.pop("api_key", None)
         if api_key:
-            config.api_key_encrypted = encrypt_text(api_key)
+            try:
+                config.api_key_encrypted = encrypt_text(api_key)
+            except ValueError as e:
+                raise ValueError(f"Cannot encrypt API key: {e}") from e
 
         for key, value in data.items():
             setattr(config, key, value)

@@ -15,11 +15,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.database import async_session_maker
 from app.core.logging import (
-    get_logger,
     generate_trace_id,
+    get_logger,
     set_trace_id,
     set_user_id,
-    get_trace_id,
 )
 from app.services.request_log_service import RequestLogService
 
@@ -28,20 +27,20 @@ logger = get_logger(__name__)
 
 class RequestTraceMiddleware(BaseHTTPMiddleware):
     """请求追踪中间件"""
-    
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # 生成或获取 trace_id
         trace_id = request.headers.get("X-Trace-ID") or generate_trace_id()
         set_trace_id(trace_id)
-        
+
         # 记录请求开始
         start_time = time.perf_counter()
         method = request.method
         path = request.url.path
-        
+
         # 获取客户端 IP
         client_ip = request.client.host if request.client else "unknown"
-        
+
         logger.info(f"Request started: {method} {path}", extra={
             "extra_data": {
                 "method": method,
@@ -50,16 +49,16 @@ class RequestTraceMiddleware(BaseHTTPMiddleware):
                 "query_params": dict(request.query_params),
             }
         })
-        
+
         try:
             response = await call_next(request)
-            
+
             # 计算耗时
             elapsed_ms = (time.perf_counter() - start_time) * 1000
-            
+
             # 添加 trace_id 到响应头
             response.headers["X-Trace-ID"] = trace_id
-            
+
             # 记录请求完成
             log_method = logger.info if response.status_code < 400 else logger.warning
             log_method(
@@ -99,9 +98,9 @@ class RequestTraceMiddleware(BaseHTTPMiddleware):
                         "Failed to persist request log",
                         extra={"extra_data": {"error": str(log_error)}},
                     )
-            
+
             return response
-            
+
         except Exception as e:
             elapsed_ms = (time.perf_counter() - start_time) * 1000
             logger.error(
@@ -121,10 +120,10 @@ class RequestTraceMiddleware(BaseHTTPMiddleware):
 
 class UserContextMiddleware(BaseHTTPMiddleware):
     """用户上下文中间件（在认证后设置用户 ID）"""
-    
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # 如果请求中已有用户信息，设置到上下文
         if hasattr(request.state, "user") and request.state.user:
             set_user_id(str(request.state.user.id))
-        
+
         return await call_next(request)

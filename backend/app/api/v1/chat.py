@@ -6,7 +6,6 @@ Chat API routes for message handling and AI responses.
 import json
 import logging
 import uuid
-import base64
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -191,20 +190,20 @@ async def send_message_stream(
     async def generate_stream():
         llm_service = get_llm_service()
         tts_service = get_tts_service()
-        
+
         full_response = ""
         sentence_buffer = ""
         message_id = str(uuid.uuid4())
-        
+
         try:
             # 流式获取 LLM 响应
             async for chunk in llm_service.chat_stream(llm_messages):
                 full_response += chunk
                 sentence_buffer += chunk
-                
+
                 # 发送文本片段
                 yield f"event: text\ndata: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
-                
+
                 # 检查是否有完整句子（以句号、问号、感叹号结尾）
                 # 分段合成 TTS
                 sentence_enders = ['。', '？', '！', '；', '.', '?', '!', ';']
@@ -214,7 +213,7 @@ async def send_message_stream(
                         idx = sentence_buffer.index(ender) + 1
                         sentence = sentence_buffer[:idx]
                         sentence_buffer = sentence_buffer[idx:]
-                        
+
                         # 合成音频
                         try:
                             audio_data = await tts_service.synthesize(sentence)
@@ -223,9 +222,9 @@ async def send_message_stream(
                             yield f"event: audio\ndata: {json.dumps({'audio_base64': audio_base64, 'text': sentence}, ensure_ascii=False)}\n\n"
                         except Exception as e:
                             logger.warning(f"TTS synthesis failed for sentence: {e}")
-                        
+
                         break
-            
+
             # 处理剩余的文本
             if sentence_buffer.strip():
                 try:
@@ -235,7 +234,7 @@ async def send_message_stream(
                     yield f"event: audio\ndata: {json.dumps({'audio_base64': audio_base64, 'text': sentence_buffer}, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     logger.warning(f"TTS synthesis failed for remaining text: {e}")
-            
+
             # 保存 AI 消息
             ai_message = Message(
                 id=message_id,
@@ -246,18 +245,18 @@ async def send_message_stream(
                 extra_data={},
             )
             db.add(ai_message)
-            
+
             # 更新会话
             conversation.message_count += 2
             conversation.last_message_at = datetime.now(timezone.utc)
             if not conversation.title:
                 conversation.title = data.content[:50] + ("..." if len(data.content) > 50 else "")
-            
+
             await db.commit()
-            
+
             # 发送完成事件
             yield f"event: done\ndata: {json.dumps({'message_id': message_id}, ensure_ascii=False)}\n\n"
-            
+
         except Exception as e:
             logger.error(f"Stream generation failed: {e}")
             yield f"event: error\ndata: {json.dumps({'message': str(e)}, ensure_ascii=False)}\n\n"

@@ -3,7 +3,13 @@
 import { memo, useMemo } from "react";
 import type { RequestLog } from "@/services/adminApi";
 import { getApiName, getMethodStyle } from "@/lib/apiNameMapping";
-import { Select } from "@/components/ui/Select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PaginationInfo {
   page: number;
@@ -157,11 +163,19 @@ function Pagination({
           <span className="text-xs text-gray-500">每页</span>
           <Select
             value={String(pagination.page_size)}
-            onChange={(val) => onPageSizeChange?.(Number(val))}
-            options={PAGE_SIZE_OPTIONS}
-            size="sm"
-            className="w-16"
-          />
+            onValueChange={(v) => v && onPageSizeChange?.(Number(v))}
+          >
+            <SelectTrigger size="sm" className="w-16">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <span className="text-xs text-gray-500">条</span>
         </div>
       </div>

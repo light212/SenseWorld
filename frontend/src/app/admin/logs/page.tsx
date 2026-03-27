@@ -5,7 +5,13 @@ import { adminApi, type RequestLog, type RequestLogDetail, type LatencyStats } f
 import { useAuthStore } from "@/stores/authStore";
 import { LogTable } from "@/components/admin/LogTable";
 import { LogDetailDrawer } from "@/components/admin/LogDetailDrawer";
-import { Select } from "@/components/ui/Select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -24,12 +30,12 @@ const STATUS_OPTIONS = [
 // 统计卡片组件
 function StatCard({ label, value, unit, color }: { label: string; value: number | string; unit?: string; color: string }) {
   return (
-    <div className={`rounded-xl p-4 ${color}`}>
+    <div className={`rounded-xl p-5 ${color} shadow-sm`}>
       <div className="text-2xl font-bold tabular-nums">
         {value}
         {unit && <span className="text-sm font-normal ml-1">{unit}</span>}
       </div>
-      <div className="text-xs mt-1 opacity-80">{label}</div>
+      <div className="text-sm mt-1 opacity-80">{label}</div>
     </div>
   );
 }
@@ -213,11 +219,18 @@ export default function AdminLogsPage() {
             {/* 时间范围 */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">时间范围</label>
-              <Select
-                value={dateRange}
-                onChange={setDateRange}
-                options={DATE_RANGE_OPTIONS}
-              />
+              <Select value={dateRange} onValueChange={(v) => v && setDateRange(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_RANGE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Trace ID */}
@@ -247,12 +260,18 @@ export default function AdminLogsPage() {
             {/* 状态筛选 */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">状态</label>
-              <Select
-                value={status}
-                onChange={setStatus}
-                options={STATUS_OPTIONS}
-                placeholder="全部状态"
-              />
+              <Select value={status} onValueChange={(v) => v && setStatus(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="全部状态" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* 查询按钮 */}

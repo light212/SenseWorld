@@ -42,7 +42,7 @@ async def list_messages(
         )
     )
     conversation = conv_result.scalar_one_or_none()
-    
+
     # 对话不存在时返回空列表（允许新对话）
     if not conversation:
         return MessageListResponse(

@@ -5,8 +5,7 @@ Alert ORM model for admin notifications.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, String
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Boolean, DateTime, String
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import Mapped, mapped_column
 

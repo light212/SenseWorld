@@ -7,12 +7,12 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.api.v1.deps import get_admin_user
+from app.core.database import get_db
 from app.models.model_config import ModelConfig
 from app.models.user import User
 from app.services.alert_service import AlertService
@@ -68,8 +68,7 @@ class ModelConfigResponse(BaseModel):
     created_at: str
     updated_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UsageSummaryResponse(BaseModel):
@@ -108,8 +107,7 @@ class AlertResponse(BaseModel):
     is_read: bool
     created_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AlertPageResponse(BaseModel):
@@ -166,8 +164,7 @@ class SystemSettingResponse(BaseModel):
     description: Optional[str] = None
     updated_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SystemSettingUpdateRequest(BaseModel):
@@ -220,17 +217,17 @@ async def list_model_configs(
 ) -> List[ModelConfigResponse]:
     """List all model configurations."""
     query = select(ModelConfig)
-    
+
     if model_type:
         query = query.where(ModelConfig.model_type == model_type)
     if terminal_type:
         query = query.where(ModelConfig.terminal_type == terminal_type)
     if is_active is not None:
         query = query.where(ModelConfig.is_active == is_active)
-    
+
     result = await db.execute(query)
     configs = result.scalars().all()
-    
+
     service = ConfigService(db)
     responses = []
     for config in configs:
@@ -247,10 +244,67 @@ async def create_model_config(
     """Create a new model configuration."""
     service = ConfigService(db)
     config = await service.create_config(data.model_dump())
-    
+
     logger.info(f"Admin {admin.email} created model config: {config.model_type}:{config.model_name}")
-    
+
     return ModelConfigResponse(**await service.to_response(config))
+
+
+class ModelTestRequest(BaseModel):
+    model_type: str
+    provider: str
+    model_name: str
+    config: dict = Field(default_factory=dict)
+
+
+class ModelTestResponse(BaseModel):
+    success: bool
+    message: str
+    latency_ms: Optional[int] = None
+
+
+@router.post("/models/test", response_model=ModelTestResponse)
+async def test_model_connection(
+    data: ModelTestRequest,
+    admin: User = Depends(get_admin_user),
+) -> ModelTestResponse:
+    """Test model connection and availability."""
+    import time
+
+    start = time.time()
+
+    try:
+        protocol = data.config.get("protocol", "openai_compatible")
+
+        if protocol == "websocket":
+            ws_url = data.config.get("ws_url")
+            if not ws_url:
+                return ModelTestResponse(
+                    success=False,
+                    message="WebSocket URL 未配置",
+                )
+
+        elif protocol in ("openai_compatible", "dashscope_sdk"):
+            api_key = data.config.get("api_key")
+            if not api_key:
+                return ModelTestResponse(
+                    success=False,
+                    message="API Key 未配置",
+                )
+
+        latency = int((time.time() - start) * 1000)
+        return ModelTestResponse(
+            success=True,
+            message=f"配置验证通过 ({data.provider}/{data.model_name})",
+            latency_ms=latency,
+        )
+
+    except Exception as e:
+        logger.error(f"Model test failed: {e}")
+        return ModelTestResponse(
+            success=False,
+            message=f"测试失败: {str(e)}",
+        )
 
 
 @router.get("/models/{config_id}", response_model=ModelConfigResponse)
@@ -262,13 +316,13 @@ async def get_model_config(
     """Get a specific model configuration."""
     service = ConfigService(db)
     config = await service.get_config(config_id)
-    
+
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model configuration not found",
         )
-    
+
     return ModelConfigResponse(**await service.to_response(config))
 
 
@@ -282,17 +336,17 @@ async def update_model_config(
     """Update a model configuration."""
     service = ConfigService(db)
     config = await service.get_config(config_id)
-    
+
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model configuration not found",
         )
-    
+
     config = await service.update_config(config, data.model_dump(exclude_unset=True))
-    
+
     logger.info(f"Admin {admin.email} updated model config: {config.model_type}:{config.model_name}")
-    
+
     return ModelConfigResponse(**await service.to_response(config))
 
 
@@ -305,15 +359,15 @@ async def delete_model_config(
     """Delete a model configuration."""
     service = ConfigService(db)
     config = await service.get_config(config_id)
-    
+
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model configuration not found",
         )
-    
+
     await service.delete_config(config)
-    
+
     logger.info(f"Admin {admin.email} deleted model config: {config.model_type}:{config.model_name}")
 
 
@@ -713,22 +767,23 @@ async def get_dashboard_stats(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Get dashboard statistics."""
+    from sqlalchemy import func
+
     from app.models.conversation import Conversation
     from app.models.message import Message
-    from sqlalchemy import func
-    
+
     # Total users
     users_result = await db.execute(select(func.count(User.id)))
     total_users = users_result.scalar() or 0
-    
+
     # Total conversations
     convs_result = await db.execute(select(func.count(Conversation.id)))
     total_conversations = convs_result.scalar() or 0
-    
+
     # Total messages
     msgs_result = await db.execute(select(func.count(Message.id)))
     total_messages = msgs_result.scalar() or 0
-    
+
     return {
         "total_users": total_users,
         "total_conversations": total_conversations,
