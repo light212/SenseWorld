@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_admin_user
 from app.core.database import get_db
+from app.core.security import create_access_token, verify_password
 from app.models.model_config import ModelConfig
 from app.models.user import User
 from app.services.alert_service import AlertService
@@ -21,13 +22,54 @@ from app.services.request_log_service import RequestLogService
 from app.services.system_setting_service import SystemSettingService
 from app.services.terminal_service import TerminalService
 from app.services.usage_service import UsageService
+from app.schemas.auth import AuthResponse, UserLogin, UserResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-# Pydantic schemas
+# ============ Admin Login ============
+
+@router.post("/login", response_model=AuthResponse)
+async def admin_login(
+    data: UserLogin,
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
+    """Admin login - only allows admin users."""
+    # Find user by email
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+
+    if not user or not verify_password(data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="邮箱或密码错误",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="账号已被禁用",
+        )
+
+    # Check admin role
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无管理员权限",
+        )
+
+    # Create access token
+    access_token = create_access_token(data={"sub": str(user.id)})
+
+    return AuthResponse(
+        access_token=access_token,
+        user=UserResponse.model_validate(user),
+    )
+
+
+# ============ Pydantic schemas ============
 class ModelConfigCreate(BaseModel):
     model_type: str
     model_name: str
