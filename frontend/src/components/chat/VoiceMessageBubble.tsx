@@ -25,28 +25,23 @@ export function VoiceMessageBubble({
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [actualDuration, setActualDuration] = useState(duration);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // 初始化音频 URL
   useEffect(() => {
     let mounted = true;
-    
+
     async function loadAudio() {
-      // 优先用 audioBlob（实时录制）
       if (audioBlob) {
         const url = URL.createObjectURL(audioBlob);
         if (mounted) setCurrentUrl(url);
-        return () => URL.revokeObjectURL(url);
+        return;
       }
-      
-      // 其次用 audioUrl（直接传入）
       if (audioUrl) {
         if (mounted) setCurrentUrl(audioUrl);
         return;
       }
-      
-      // 最后从缓存读取
       if (messageId) {
         try {
           const cached = await getAudio(messageId);
@@ -55,13 +50,15 @@ export function VoiceMessageBubble({
             setCurrentUrl(url);
           }
         } catch (e) {
-          console.warn('Failed to load cached audio:', e);
+          console.warn("Failed to load cached audio:", e);
         }
       }
     }
-    
+
     loadAudio();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [messageId, audioBlob, audioUrl]);
 
   const formatDuration = (ms: number): string => {
@@ -80,15 +77,18 @@ export function VoiceMessageBubble({
     } else {
       if (!audioRef.current) {
         audioRef.current = new Audio(currentUrl);
+        audioRef.current.onloadedmetadata = () => {
+          if (audioRef.current && audioRef.current.duration) {
+            setActualDuration(Math.round(audioRef.current.duration * 1000));
+          }
+        };
         audioRef.current.onended = () => {
           setIsPlaying(false);
           setProgress(0);
         };
         audioRef.current.ontimeupdate = () => {
-          if (audioRef.current) {
-            setProgress(
-              (audioRef.current.currentTime / audioRef.current.duration) * 100
-            );
+          if (audioRef.current && audioRef.current.duration) {
+            setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
           }
         };
       }
@@ -106,99 +106,73 @@ export function VoiceMessageBubble({
     };
   }, []);
 
-  // 计算气泡宽度（基于时长）
-  const bubbleWidth = Math.min(140 + (duration / 1000) * 4, 260);
-  const hasAudio = !!currentUrl;
-
-  // 如果没有音频且时长为 0，显示简化的无效状态
-  if (!hasAudio && duration === 0) {
+  // 没有音频且时长为 0
+  if (!currentUrl && duration === 0) {
     return (
-      <div className={cn("text-xs text-gray-400 px-2 py-1", className)}>
+      <div className={cn("text-xs text-gray-400 px-1 py-0.5", className)}>
         语音已过期
       </div>
     );
   }
 
   return (
-    <div className={cn("flex flex-col gap-1", className)}>
-      {/* 语音条 */}
-      <div
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-2xl",
+        "max-w-[240px]",
+        "px-4 py-3",
+        isUser
+          ? "bg-gradient-to-r from-blue-500 to-purple-600 rounded-tr-sm"
+          : "bg-white border border-gray-200 shadow-sm rounded-tl-sm",
+        className
+      )}
+    >
+      {/* 播放按钮 */}
+      <button
+        onClick={handlePlay}
+        disabled={!currentUrl}
         className={cn(
-          "relative flex items-center gap-3 px-3 py-2 rounded-2xl",
-          isUser
-            ? "bg-blue-500 text-white"
-            : "bg-gray-100 text-gray-700 border border-gray-200",
-          !hasAudio && "opacity-60"
+          "flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-opacity",
+          !currentUrl && "opacity-40 cursor-not-allowed",
+          isUser ? "text-white" : "text-blue-500"
         )}
-        style={{ width: `${bubbleWidth}px` }}
       >
-        {/* 播放按钮 */}
-        <button
-          onClick={handlePlay}
-          disabled={!hasAudio}
-          aria-label={isPlaying ? "暂停" : "播放"}
-          className={cn(
-            "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-            "transition-transform active:scale-95",
-            isUser
-              ? "bg-white text-blue-500"
-              : "bg-white text-gray-600 shadow-sm",
-            !hasAudio && "cursor-not-allowed"
-          )}
-        >
-          {isPlaying ? (
-            <Pause className="w-4 h-4" />
-          ) : (
-            <Play className="w-4 h-4 ml-0.5" />
-          )}
-        </button>
-
-        {/* 声波区域 */}
-        <div className="flex-1 flex items-center justify-center h-8">
-          <div className="flex items-center gap-[3px] h-full">
-            {[...Array(7)].map((_, i) => {
-              // 静态时的高度模式
-              const staticHeights = [12, 18, 24, 28, 24, 18, 12];
-              // 播放时的动态高度
-              const dynamicHeight = isPlaying
-                ? 8 + Math.sin(progress / 8 + i * 0.8) * 12
-                : staticHeights[i];
-              
-              return (
-                <div
-                  key={i}
-                  className={cn(
-                    "w-[3px] rounded-full transition-all duration-100",
-                    isUser ? "bg-white/80" : "bg-gray-400"
-                  )}
-                  style={{ height: `${dynamicHeight}px` }}
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 时长 */}
-        <span className={cn(
-          "flex-shrink-0 text-sm font-medium tabular-nums",
-          isUser ? "text-white/90" : "text-gray-500"
-        )}>
-          {formatDuration(duration)}
-        </span>
-
-        {/* 进度条（叠加在底部） */}
-        {isPlaying && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-2xl">
-            <div
-              className={cn(
-                "h-full transition-all duration-100",
-                isUser ? "bg-white/40" : "bg-blue-400/60"
-              )}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+        {isPlaying ? (
+          <Pause className="w-4 h-4" />
+        ) : (
+          <Play className="w-4 h-4 translate-x-0.5" />
         )}
+      </button>
+
+      {/* 声波图 - flex:1 占满剩余空间 */}
+      <div className="flex-1 flex items-center gap-[3px] min-w-[60px]">
+        {[...Array(10)].map((_, i) => {
+          const staticHeights = [8, 12, 16, 20, 24, 24, 20, 16, 12, 8];
+          const dynamicHeight = isPlaying
+            ? 6 + Math.abs(Math.sin(progress / 10 + i * 0.7)) * 18
+            : staticHeights[i];
+          return (
+            <div
+              key={i}
+              className={cn(
+                "w-[3px] rounded-full transition-all duration-100",
+                isUser ? "bg-white/70" : "bg-gray-300"
+              )}
+              style={{ height: `${dynamicHeight}px` }}
+            />
+          );
+        })}
       </div>
+
+      {/* 时长 */}
+      <span
+        className={cn(
+          "flex-shrink-0 text-[13px] font-medium tabular-nums",
+          isUser ? "text-white/90" : "text-gray-500"
+        )}
+      >
+        {formatDuration(actualDuration)}
+      </span>
     </div>
   );
 }

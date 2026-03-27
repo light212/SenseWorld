@@ -89,7 +89,7 @@ function MessageItem({ message }: MessageItemProps) {
   const isVoiceMessage = message.metadata?.inputType === "voice";
 
   return (
-    <div className={cn("flex gap-3", isUser && "flex-row-reverse")}>
+    <div className={cn("flex items-end gap-3", isUser && "flex-row-reverse")}>
       {/* Avatar - 始终显示 */}
       <div
         className={cn(
