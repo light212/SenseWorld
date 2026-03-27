@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.message import Message
-from app.services.tts_service import get_tts_service
+from app.services.tts_service import get_tts_service_from_db
 
 router = APIRouter(prefix="/audio", tags=["audio"])
 
@@ -44,8 +44,8 @@ async def get_message_audio(
             detail="Audio only available for assistant messages",
         )
 
-    # Generate audio
-    tts_service = get_tts_service()
+    # Generate audio (从数据库获取 TTS 配置)
+    tts_service = await get_tts_service_from_db(db)
     audio_data = await tts_service.synthesize(text=message.content)
 
     return Response(
