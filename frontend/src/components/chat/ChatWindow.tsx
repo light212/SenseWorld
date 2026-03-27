@@ -20,21 +20,20 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ conversationId, className }: ChatWindowProps) {
-  const {
-    currentConversationId,
-    messages,
-    streamingContent,
-    isStreaming,
-    isSendingMessage,
-    addMessage,
-    setMessages,
-    setIsSendingMessage,
-    updateStreamingContent,
-    clearStreamingContent,
-    setIsStreaming,
-  } = useConversationStore();
+  // 分开 selector 避免不必要的重渲染
+  const currentConversationId = useConversationStore((s) => s.currentConversationId);
+  const messages = useConversationStore((s) => s.messages);
+  const streamingContent = useConversationStore((s) => s.streamingContent);
+  const isStreaming = useConversationStore((s) => s.isStreaming);
+  const isSendingMessage = useConversationStore((s) => s.isSendingMessage);
+  const addMessage = useConversationStore((s) => s.addMessage);
+  const setMessages = useConversationStore((s) => s.setMessages);
+  const setIsSendingMessage = useConversationStore((s) => s.setIsSendingMessage);
+  const updateStreamingContent = useConversationStore((s) => s.updateStreamingContent);
+  const clearStreamingContent = useConversationStore((s) => s.clearStreamingContent);
+  const setIsStreaming = useConversationStore((s) => s.setIsStreaming);
 
-  const { token } = useAuthStore();
+  const token = useAuthStore((s) => s.token);
   const audioQueueRef = useRef<string[]>([]);
   const audioChunksForSaveRef = useRef<string[]>([]); // 用于保存到缓存的音频
   const isPlayingRef = useRef(false);
