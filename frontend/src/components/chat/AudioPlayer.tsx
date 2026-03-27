@@ -29,7 +29,8 @@ export function AudioPlayer({
 
   useEffect(() => {
     if (src) {
-      audioRef.current = new Audio(src);
+      audioRef.current = new Audio();
+      audioRef.current.preload = "metadata"; // 预加载元数据获取时长
       audioRef.current.onloadedmetadata = () => {
         setDuration(audioRef.current?.duration || 0);
       };
@@ -40,6 +41,11 @@ export function AudioPlayer({
         setIsPlaying(false);
         setCurrentTime(0);
       };
+      audioRef.current.onerror = () => {
+        // 静默处理加载错误
+        setDuration(0);
+      };
+      audioRef.current.src = src;
     }
     return () => {
       if (audioRef.current) {
@@ -96,8 +102,11 @@ export function AudioPlayer({
       </div>
 
       {/* 时长 */}
-      <span className="text-xs text-gray-500 tabular-nums">
-        {isPlaying ? formatDuration(currentTime) : formatDuration(duration)}
+      <span className="text-xs text-gray-500 tabular-nums min-w-[32px]">
+        {duration > 0 
+          ? (isPlaying ? formatDuration(currentTime) : formatDuration(duration))
+          : "..."
+        }
       </span>
     </button>
   );
