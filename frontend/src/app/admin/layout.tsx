@@ -22,16 +22,6 @@ const navItems = [
   { href: "/admin/troubleshoot", icon: FileText, label: "问题排查" },
 ];
 
-// 导航项颜色
-const navColors: Record<string, { bg: string; text: string; icon: string }> = {
-  "/admin/dashboard": { bg: "bg-blue-50", text: "text-blue-700", icon: "text-blue-500" },
-  "/admin/models": { bg: "bg-purple-50", text: "text-purple-700", icon: "text-purple-500" },
-  "/admin/usage": { bg: "bg-green-50", text: "text-green-700", icon: "text-green-500" },
-  "/admin/logs": { bg: "bg-amber-50", text: "text-amber-700", icon: "text-amber-500" },
-  "/admin/settings": { bg: "bg-gray-100", text: "text-gray-700", icon: "text-gray-500" },
-  "/admin/terminals": { bg: "bg-cyan-50", text: "text-cyan-700", icon: "text-cyan-500" },
-};
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/v1";
 
@@ -123,15 +113,14 @@ export default function AdminLayout({
       {/* Navigation */}
       <nav className="p-3 space-y-1 flex-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          const colors = navColors[item.href] || { bg: "bg-gray-100", text: "text-gray-700", icon: "text-gray-500" };
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <button
               key={item.href}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                 isActive 
-                  ? `${colors.bg} ${colors.text}` 
+                  ? "bg-blue-50 text-blue-600" 
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               )}
               onClick={() => {
@@ -139,11 +128,8 @@ export default function AdminLayout({
                 setSidebarOpen(false);
               }}
             >
-              <item.icon className={cn("w-5 h-5", isActive ? colors.icon : "text-gray-400")} />
+              <item.icon className={cn("w-5 h-5", isActive ? "text-blue-600" : "text-gray-400")} />
               {item.label}
-              {isActive && (
-                <div className={cn("ml-auto w-1.5 h-1.5 rounded-full", colors.icon.replace("text-", "bg-"))} />
-              )}
             </button>
           );
         })}
