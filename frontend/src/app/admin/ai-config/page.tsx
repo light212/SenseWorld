@@ -122,15 +122,15 @@ export default function AIConfigPage() {
                   isConfigured ? "border-gray-200" : "border-gray-200"
                 )}
               >
-                <div className="flex items-center gap-4">
-                  {/* 图标 */}
+                <div className="flex items-center gap-3">
+                  {/* 图标 - 加深颜色 */}
                   <div className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center",
-                    isConfigured ? "bg-gray-100" : "bg-gray-50"
+                    "w-11 h-11 rounded-lg flex items-center justify-center",
+                    isConfigured ? "bg-blue-100" : "bg-gray-100"
                   )}>
                     <cap.icon className={cn(
-                      "w-6 h-6",
-                      isConfigured ? "text-blue-500" : "text-gray-400"
+                      "w-5 h-5",
+                      isConfigured ? "text-blue-600" : "text-gray-500"
                     )} />
                   </div>
 
@@ -143,23 +143,21 @@ export default function AIConfigPage() {
                           {activeCount} 个启用
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-600">
                           <AlertCircle className="w-3 h-3" />
-                          未配置
+                          待配置
                         </span>
                       )}
                     </div>
                     <p className="text-sm text-gray-500">{cap.description}</p>
                   </div>
 
-                  {/* 默认模型信息 */}
-                  <div className="hidden md:block text-right">
+                  {/* 右侧：已配置显示模型名，未配置显示蓝色按钮 */}
+                  <div className="hidden md:flex items-center gap-2">
                     {defaultModel ? (
-                      <div className="text-sm text-gray-600">
-                        当前使用：{defaultModel.model_name}
-                      </div>
+                      <span className="text-sm text-gray-600">{defaultModel.model_name}</span>
                     ) : (
-                      <div className="text-sm text-gray-400">点击配置</div>
+                      <span className="text-sm font-medium text-blue-600">去配置</span>
                     )}
                   </div>
 
