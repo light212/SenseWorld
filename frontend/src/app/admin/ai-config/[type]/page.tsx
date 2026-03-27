@@ -125,6 +125,7 @@ export default function CapabilityDetailPage() {
   const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
 
   // 弹窗状态
   const [modalStep, setModalStep] = useState<ModalStep>("closed");
@@ -229,6 +230,7 @@ export default function CapabilityDetailPage() {
 
   // 弹窗操作
   const openAddModal = () => {
+    setEditingModel(null);
     setModalStep("form");
     setModalProvider("dashscope");
     setModalModel("");
@@ -236,6 +238,7 @@ export default function CapabilityDetailPage() {
     setModalBaseUrl("");
     setModalProtocol("dashscope_sdk");
     setModalTerminalType("web");
+    setModalVoice("Cherry");
     setModalError("");
     // 自动选择第一个模型
     const options = getModelOptions("dashscope", type);
@@ -246,6 +249,19 @@ export default function CapabilityDetailPage() {
         setModalProtocol(options[0].protocol);
       }
     }
+  };
+
+  const openEditModal = (model: ModelConfig) => {
+    setEditingModel(model);
+    setModalStep("form");
+    setModalProvider(model.provider);
+    setModalModel(model.model_name);
+    setModalApiKey(model.config?.api_key || "");
+    setModalBaseUrl(model.config?.base_url || "");
+    setModalProtocol(model.config?.protocol || "openai_compatible");
+    setModalTerminalType(model.terminal_type || "web");
+    setModalVoice(model.config?.voice || "Cherry");
+    setModalError("");
   };
 
   const closeAddModal = () => {
@@ -314,15 +330,27 @@ export default function CapabilityDetailPage() {
 
       setModalLatency(testResult.latency_ms || 0);
 
-      // 保存
+      // 保存或更新
       adminApi.setToken(token);
-      await adminApi.createModelConfig({
-        model_type: type as "llm" | "asr" | "tts",
-        model_name: modalModel,
-        provider: modalProvider,
-        config,
-        terminal_type: modalTerminalType,
-      });
+      
+      if (editingModel) {
+        // 编辑模式 - 更新现有配置
+        await adminApi.updateModelConfig(editingModel.id, {
+          model_name: modalModel,
+          provider: modalProvider,
+          config,
+          terminal_type: modalTerminalType,
+        });
+      } else {
+        // 新增模式
+        await adminApi.createModelConfig({
+          model_type: type as "llm" | "asr" | "tts",
+          model_name: modalModel,
+          provider: modalProvider,
+          config,
+          terminal_type: modalTerminalType,
+        });
+      }
 
       setModalStep("success");
       setTimeout(() => {
@@ -474,6 +502,12 @@ export default function CapabilityDetailPage() {
                       <ToggleLeft className="w-5 h-5" />
                     )}
                   </button>
+                  <button
+                    onClick={() => openEditModal(model)}
+                    className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    编辑
+                  </button>
                   {!model.is_default && (
                     <button
                       onClick={() => handleSetDefault(model)}
@@ -511,9 +545,9 @@ export default function CapabilityDetailPage() {
             {/* 头部 */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">
-                {modalStep === "form" && "添加模型"}
+                {modalStep === "form" && (editingModel ? "编辑模型" : "添加模型")}
                 {modalStep === "testing" && "测试连接"}
-                {modalStep === "success" && "配置成功"}
+                {modalStep === "success" && (editingModel ? "更新成功" : "配置成功")}
                 {modalStep === "error" && "配置失败"}
               </h2>
               <button onClick={closeAddModal} className="text-gray-400 hover:text-gray-600">
