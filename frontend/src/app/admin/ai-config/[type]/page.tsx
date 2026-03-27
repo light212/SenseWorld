@@ -80,6 +80,10 @@ const getModelOptions = (provider: string, modelType: string) => {
       tts: [
         { id: "cosyvoice-v1", name: "CosyVoice", description: "语音合成", protocol: "dashscope_sdk" },
       ],
+      vd: [
+        { id: "qwen-omni-turbo", name: "Qwen-Omni-Turbo", description: "WebSocket · 速度快 · 实时场景", protocol: "websocket" },
+        { id: "qwen3-omni-flash", name: "Qwen3-Omni-Flash", description: "WebSocket · 最新版 · 效果好", protocol: "websocket" },
+      ],
     },
     openai: {
       llm: [
