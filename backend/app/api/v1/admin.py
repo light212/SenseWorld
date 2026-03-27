@@ -375,9 +375,12 @@ async def test_model_connection(
             # 移除尾部斜杠
             base_url = base_url.rstrip("/")
             
+            full_url = f"{base_url}/chat/completions"
+            logger.info(f"Testing OpenAI compatible endpoint: {full_url}")
+            
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
-                    f"{base_url}/chat/completions",
+                    full_url,
                     headers={
                         "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json",
@@ -388,6 +391,7 @@ async def test_model_connection(
                         "max_tokens": 5,
                     },
                 )
+                logger.info(f"Response status: {response.status_code}, body: {response.text[:500]}")
                 latency = int((time.time() - start) * 1000)
                 
                 if response.status_code == 200:
