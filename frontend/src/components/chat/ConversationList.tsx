@@ -59,24 +59,30 @@ export function ConversationList({
             className="absolute inset-0 bg-black/50"
             onClick={() => setConfirmId(null)}
           />
-          <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
-            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-4">
-              <AlertTriangle className="w-6 h-6 text-amber-500" />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+            {/* 图标 */}
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-amber-600" />
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">确认删除</h3>
-            <p className="text-gray-500 mb-6">
+            {/* 标题 */}
+            <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">确认删除</h3>
+            {/* 描述 */}
+            <p className="text-sm text-gray-500 mb-6 text-center leading-relaxed">
               确定要删除这个会话吗？<br />此操作不可撤销。
             </p>
+            {/* 按钮 */}
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmId(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex-1 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 text-gray-700 font-medium transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 font-medium shadow-md shadow-red-200 transition-all"
               >
                 删除
               </button>
