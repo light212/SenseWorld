@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, AlertCircle } from "lucide-react";
+import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAudio, createAudioUrl } from "@/lib/audio-cache";
 
-// 格式化时长
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -13,8 +12,8 @@ function formatDuration(seconds: number): string {
 }
 
 interface AudioPlayerProps {
-  messageId: string; // 用于从缓存获取
-  fallbackSrc?: string; // 如果缓存没有，用这个 URL
+  messageId: string;
+  fallbackSrc?: string;
   className?: string;
 }
 
@@ -26,79 +25,79 @@ export function AudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isExpired, setIsExpired] = useState(false);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioUrlRef = useRef<string | null>(null);
 
+  // 尝试从缓存加载
   useEffect(() => {
     let mounted = true;
     
-    async function loadAudio() {
-      setIsLoading(true);
-      
+    async function loadFromCache() {
       try {
-        // 1. 先尝试从本地缓存获取
         const cached = await getAudio(messageId);
-        if (cached && cached.audioChunks && cached.audioChunks.length > 0) {
+        if (cached?.audioChunks?.length > 0 && mounted) {
           const url = createAudioUrl(cached.audioChunks);
-          audioUrlRef.current = url;
-          
-          if (mounted) {
-            const audio = new Audio(url);
-            audio.onloadedmetadata = () => {
-              if (mounted) {
-                setDuration(audio.duration || 0);
-                setIsLoading(false);
-              }
-            };
-            audio.ontimeupdate = () => {
-              if (mounted) setCurrentTime(audio.currentTime || 0);
-            };
-            audio.onended = () => {
-              if (mounted) {
-                setIsPlaying(false);
-                setCurrentTime(0);
-              }
-            };
-            audio.onerror = () => {
-              if (mounted) {
-                setIsExpired(true);
-                setIsLoading(false);
-              }
-            };
-            audioRef.current = audio;
-          }
-          return;
+          setAudioSrc(url);
         }
       } catch (e) {
-        console.warn('Failed to load cached audio:', e);
+        console.warn('Cache load failed:', e);
       }
-      
-      // 2. 没有缓存或加载失败，显示暂无语音
-      if (mounted) {
-        setIsExpired(true);
-        setIsLoading(false);
-      }
+      if (mounted) setIsLoading(false);
     }
     
-    loadAudio();
-    
-    return () => {
-      mounted = false;
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-      }
-    };
+    loadFromCache();
+    return () => { mounted = false; };
   }, [messageId]);
 
-  const handlePlayPause = () => {
-    if (!audioRef.current || isExpired) return;
+  // 从服务器加载
+  const loadFromServer = async () => {
+    if (!fallbackSrc) return;
+    setIsLoading(true);
     
+    try {
+      const response = await fetch(fallbackSrc);
+      if (response.ok) {
+        const blob = await response.blob();
+        if (blob.size > 0) {
+          const url = URL.createObjectURL(blob);
+          setAudioSrc(url);
+          // 自动播放
+          setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.play();
+              setIsPlaying(true);
+            }
+          }, 100);
+        }
+      }
+    } catch (e) {
+      console.error('Server load failed:', e);
+    }
+    setIsLoading(false);
+  };
+
+  // 设置音频元素
+  useEffect(() => {
+    if (!audioSrc) return;
+    
+    const audio = new Audio(audioSrc);
+    audio.onloadedmetadata = () => setDuration(audio.duration || 0);
+    audio.ontimeupdate = () => setCurrentTime(audio.currentTime || 0);
+    audio.onended = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+    audioRef.current = audio;
+    
+    return () => {
+      audio.pause();
+      URL.revokeObjectURL(audioSrc);
+    };
+  }, [audioSrc]);
+
+  const handlePlayPause = () => {
+    if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
     } else {
@@ -109,119 +108,61 @@ export function AudioPlayer({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // 没有缓存时，点击从服务器获取
-  const handleLoadFromServer = async () => {
-    if (!fallbackSrc) {
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const response = await fetch(fallbackSrc);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        audioUrlRef.current = url;
-        
-        const audio = new Audio(url);
-        audio.onloadedmetadata = () => {
-          setDuration(audio.duration || 0);
-          setIsLoading(false);
-          setIsExpired(false);
-        };
-        audio.ontimeupdate = () => setCurrentTime(audio.currentTime || 0);
-        audio.onended = () => {
-          setIsPlaying(false);
-          setCurrentTime(0);
-        };
-        audio.onerror = () => {
-          setIsExpired(true);
-          setIsLoading(false);
-        };
-        audioRef.current = audio;
-        // 自动播放
-        audio.play();
-        setIsPlaying(true);
-      } else {
-        setIsExpired(true);
-        setIsLoading(false);
-      }
-    } catch (e) {
-      console.error('Failed to load audio from server:', e);
-      setIsExpired(true);
-      setIsLoading(false);
-    }
-  };
-
-  // 已过期状态 - 可以点击从服务器加载
-  if (isExpired) {
+  // 没有音频源 - 显示点击播放
+  if (!audioSrc && !isLoading) {
     return (
       <button
-        onClick={handleLoadFromServer}
-        disabled={isLoading || !fallbackSrc}
+        onClick={loadFromServer}
+        disabled={!fallbackSrc}
         className={cn(
           "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
           "bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors",
-          isLoading && "opacity-50 cursor-wait",
-          !fallbackSrc && "cursor-not-allowed",
+          !fallbackSrc && "cursor-not-allowed opacity-50",
           className
         )}
       >
-        {isLoading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs">加载中...</span>
-          </>
-        ) : (
-          <>
-            <Play className="w-4 h-4" />
-            <span className="text-xs">点击播放</span>
-          </>
-        )}
+        <Play className="w-4 h-4" />
+        <span className="text-xs">点击播放</span>
       </button>
     );
   }
 
+  // 加载中
+  if (isLoading) {
+    return (
+      <div className={cn(
+        "inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100",
+        className
+      )}>
+        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs text-gray-400">加载中...</span>
+      </div>
+    );
+  }
+
+  // 正常播放器
   return (
     <button
       onClick={handlePlayPause}
-      disabled={isLoading}
       className={cn(
         "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
-        "bg-gray-100 hover:bg-gray-200 transition-colors",
-        "text-gray-700",
-        isLoading && "opacity-50 cursor-wait",
+        "bg-gray-100 hover:bg-gray-200 transition-colors text-gray-700",
         className
       )}
-      aria-label={isPlaying ? "暂停" : "播放"}
     >
-      {/* 播放/暂停图标 */}
       <div className={cn(
         "w-6 h-6 rounded-full flex items-center justify-center",
         isPlaying ? "bg-blue-500 text-white" : "bg-gray-300 text-gray-600"
       )}>
-        {isPlaying ? (
-          <Pause className="w-3 h-3" />
-        ) : (
-          <Play className="w-3 h-3 ml-0.5" />
-        )}
+        {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
       </div>
 
-      {/* 简易进度条 */}
       <div className="w-16 h-1 bg-gray-300 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-blue-500 transition-all duration-100"
-          style={{ width: `${progress}%` }}
-        />
+        <div className="h-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
       </div>
 
-      {/* 时长 */}
       <span className="text-xs text-gray-500 tabular-nums min-w-[32px]">
-        {isLoading
-          ? "..."
-          : isPlaying
-          ? formatDuration(currentTime)
-          : formatDuration(duration)
-        }
+        {isPlaying ? formatDuration(currentTime) : formatDuration(duration)}
       </span>
     </button>
   );
