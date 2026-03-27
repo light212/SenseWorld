@@ -106,15 +106,28 @@ export async function cleanupOldAudio(): Promise<void> {
  * 将 base64 音频合并并创建播放 URL
  */
 export function createAudioUrl(audioChunks: string[]): string {
+  if (!audioChunks || audioChunks.length === 0) {
+    throw new Error('No audio chunks provided');
+  }
+  
   // 合并所有 base64 chunks
-  const binaryChunks = audioChunks.map(chunk => {
-    const binary = atob(chunk);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
+  const binaryChunks: Uint8Array[] = [];
+  for (const chunk of audioChunks) {
+    try {
+      const binary = atob(chunk);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      binaryChunks.push(bytes);
+    } catch (e) {
+      console.warn('Invalid base64 chunk, skipping');
     }
-    return bytes;
-  });
+  }
+  
+  if (binaryChunks.length === 0) {
+    throw new Error('No valid audio chunks');
+  }
   
   // 合并成一个 Blob
   const blob = new Blob(binaryChunks, { type: 'audio/wav' });

@@ -37,41 +37,45 @@ export function AudioPlayer({
     async function loadAudio() {
       setIsLoading(true);
       
-      // 1. 先尝试从本地缓存获取
-      const cached = await getAudio(messageId);
-      if (cached && cached.audioChunks.length > 0) {
-        const url = createAudioUrl(cached.audioChunks);
-        audioUrlRef.current = url;
-        
-        if (mounted) {
-          const audio = new Audio(url);
-          audio.onloadedmetadata = () => {
-            if (mounted) {
-              setDuration(audio.duration || 0);
-              setIsLoading(false);
-            }
-          };
-          audio.ontimeupdate = () => {
-            if (mounted) setCurrentTime(audio.currentTime || 0);
-          };
-          audio.onended = () => {
-            if (mounted) {
-              setIsPlaying(false);
-              setCurrentTime(0);
-            }
-          };
-          audio.onerror = () => {
-            if (mounted) {
-              setIsExpired(true);
-              setIsLoading(false);
-            }
-          };
-          audioRef.current = audio;
+      try {
+        // 1. 先尝试从本地缓存获取
+        const cached = await getAudio(messageId);
+        if (cached && cached.audioChunks && cached.audioChunks.length > 0) {
+          const url = createAudioUrl(cached.audioChunks);
+          audioUrlRef.current = url;
+          
+          if (mounted) {
+            const audio = new Audio(url);
+            audio.onloadedmetadata = () => {
+              if (mounted) {
+                setDuration(audio.duration || 0);
+                setIsLoading(false);
+              }
+            };
+            audio.ontimeupdate = () => {
+              if (mounted) setCurrentTime(audio.currentTime || 0);
+            };
+            audio.onended = () => {
+              if (mounted) {
+                setIsPlaying(false);
+                setCurrentTime(0);
+              }
+            };
+            audio.onerror = () => {
+              if (mounted) {
+                setIsExpired(true);
+                setIsLoading(false);
+              }
+            };
+            audioRef.current = audio;
+          }
+          return;
         }
-        return;
+      } catch (e) {
+        console.warn('Failed to load cached audio:', e);
       }
       
-      // 2. 没有缓存，显示已过期
+      // 2. 没有缓存或加载失败，显示暂无语音
       if (mounted) {
         setIsExpired(true);
         setIsLoading(false);
