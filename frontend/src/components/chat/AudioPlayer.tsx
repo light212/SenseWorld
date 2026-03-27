@@ -105,7 +105,7 @@ export function AudioPlayer({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // 已过期状态
+  // 已过期状态 - 改成"点击播放"（因为可以从服务器重新生成）
   if (isExpired) {
     return (
       <div
@@ -115,8 +115,8 @@ export function AudioPlayer({
           className
         )}
       >
-        <AlertCircle className="w-4 h-4" />
-        <span className="text-xs">语音已过期</span>
+        <Play className="w-4 h-4" />
+        <span className="text-xs">暂无语音</span>
       </div>
     );
   }
