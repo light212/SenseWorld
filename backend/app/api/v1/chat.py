@@ -219,12 +219,14 @@ async def send_message_stream(
 
                         # 合成音频
                         try:
+                            logger.info(f"TTS: synthesizing sentence: {sentence[:30]}...")
                             audio_data = await tts_service.synthesize(sentence)
+                            logger.info(f"TTS: got audio data, length: {len(audio_data)}")
                             import base64
                             audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                             yield f"event: audio\ndata: {json.dumps({'audio_base64': audio_base64, 'text': sentence}, ensure_ascii=False)}\n\n"
                         except Exception as e:
-                            logger.warning(f"TTS synthesis failed for sentence: {e}")
+                            logger.warning(f"TTS synthesis failed for sentence: {e}", exc_info=True)
 
                         break
 
