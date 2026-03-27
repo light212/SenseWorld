@@ -122,6 +122,7 @@ export default function CapabilityDetailPage() {
   const [loading, setLoading] = useState(true);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -162,11 +163,14 @@ export default function CapabilityDetailPage() {
   };
 
   const handleToggleActive = async (model: ModelConfig) => {
+    setTogglingActiveId(model.id);
     try {
       await adminApi.updateModelConfig(model.id, { is_active: !model.is_active });
       fetchModels();
     } catch (error) {
       console.error("Failed to toggle active:", error);
+    } finally {
+      setTogglingActiveId(null);
     }
   };
 
@@ -459,9 +463,12 @@ export default function CapabilityDetailPage() {
                   </button>
                   <button
                     onClick={() => handleToggleActive(model)}
-                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    disabled={togglingActiveId === model.id}
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                   >
-                    {model.is_active ? (
+                    {togglingActiveId === model.id ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : model.is_active ? (
                       <ToggleRight className="w-5 h-5 text-emerald-500" />
                     ) : (
                       <ToggleLeft className="w-5 h-5" />
