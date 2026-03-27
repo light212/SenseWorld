@@ -56,27 +56,27 @@ export function MessageList({
       {/* Streaming message */}
       {isStreaming && (
         <div className="flex gap-3 animate-fade-in">
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-            <Bot className="w-4 h-4 text-blue-600" />
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-sm">
+            <Bot className="w-4 h-4 text-white" />
           </div>
-          <div className="flex-1">
-            <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-md p-3 shadow-sm">
-              {streamingContent ? (
-                <>
-                  <p className="whitespace-pre-wrap text-gray-800">{streamingContent}</p>
-                  <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-1" />
-                </>
-              ) : (
-                <div className="flex items-center gap-2 text-gray-500">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          <div className="flex-1 max-w-[85%]">
+            {streamingContent ? (
+              <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-md p-4 shadow-sm">
+                <p className="whitespace-pre-wrap text-gray-800 leading-relaxed">{streamingContent}</p>
+                <span className="inline-block w-0.5 h-5 bg-blue-500 animate-pulse ml-0.5 -mb-1" />
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1.5">
+                    <span className="w-2 h-2 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
+                    <span className="w-2 h-2 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full animate-pulse" style={{ animationDelay: "200ms" }} />
+                    <span className="w-2 h-2 bg-gradient-to-r from-purple-400 to-purple-500 rounded-full animate-pulse" style={{ animationDelay: "400ms" }} />
                   </div>
-                  <span className="text-sm">思考中...</span>
+                  <span className="text-sm text-gray-400 font-medium">正在思考</span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
