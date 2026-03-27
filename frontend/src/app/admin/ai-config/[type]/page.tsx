@@ -562,35 +562,23 @@ export default function CapabilityDetailPage() {
                     </p>
                   </div>
 
-                  {/* 模型选择 */}
+                  {/* 模型名称 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      选择模型 <span className="text-red-500">*</span>
+                      模型名称 <span className="text-red-500">*</span>
                     </label>
-                    {modelOptions.length > 0 ? (
-                      <>
-                        <select
-                          value={modalModel}
-                          onChange={(e) => handleModelChange(e.target.value)}
-                          className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          {modelOptions.map((m) => (
-                            <option key={m.id} value={m.id}>{m.name}</option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1.5">
-                          {modelOptions.find(m => m.id === modalModel)?.description}
-                        </p>
-                      </>
-                    ) : (
-                      <input
-                        type="text"
-                        value={modalModel}
-                        onChange={(e) => setModalModel(e.target.value)}
-                        placeholder="输入模型名称，如 gpt-4"
-                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    )}
+                    <input
+                      type="text"
+                      value={modalModel}
+                      onChange={(e) => setModalModel(e.target.value)}
+                      placeholder={modalProvider === "dashscope" 
+                        ? "如 qwen-omni-turbo, qwen3-asr-flash" 
+                        : "如 gpt-4o, gpt-3.5-turbo"}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      在{modalProvider === "dashscope" ? "阿里云模型广场" : "OpenAI 文档"}查看可用模型
+                    </p>
                   </div>
 
                   {/* OpenAI Base URL */}
