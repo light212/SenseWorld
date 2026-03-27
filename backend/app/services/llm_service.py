@@ -90,6 +90,8 @@ class LLMService:
                 *messages,
             ]
 
+            logger.info(f"LLM stream request: model={self.model}, base_url={self.client.base_url}, messages={len(all_messages)}")
+
             stream = await self.client.chat.completions.create(
                 model=self.model,
                 messages=all_messages,
@@ -97,12 +99,18 @@ class LLMService:
                 stream=True,
             )
 
+            logger.info("LLM stream started")
+
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+                    content = chunk.choices[0].delta.content
+                    logger.debug(f"LLM chunk: {content[:50]}...")
+                    yield content
+
+            logger.info("LLM stream completed")
 
         except Exception as e:
-            logger.error(f"LLM streaming failed: {e}")
+            logger.error(f"LLM streaming failed: {e}", exc_info=True)
             raise
 
 

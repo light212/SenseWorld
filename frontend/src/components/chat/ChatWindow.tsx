@@ -176,7 +176,9 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
+        const chunk = decoder.decode(value, { stream: true });
+        console.log("[SSE chunk]", chunk);
+        buffer += chunk;
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
 
@@ -191,6 +193,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               const data = JSON.parse(dataStr);
               
               if (data.content) {
+                console.log("[SSE text]", data.content);
                 fullContent += data.content;
                 updateStreamingContent(data.content);
               }
