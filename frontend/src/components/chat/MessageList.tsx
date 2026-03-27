@@ -115,11 +115,9 @@ function MessageItem({ message }: MessageItemProps) {
         {/* 消息气泡 */}
         {isVoiceMessage && isUser ? (
           <VoiceMessageBubble
+            messageId={message.id}
             duration={message.audioDuration || 0}
-            audioBlob={message.metadata?.audioBlob}
-            audioUrl={message.metadata?.audioBlob ? undefined : `http://localhost:8000/v1/audio/${message.id}`}
             isUser={isUser}
-            transcription={message.content}
           />
         ) : (
           <div

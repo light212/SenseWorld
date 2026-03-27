@@ -266,9 +266,14 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       setIsSendingMessage(true);
 
       try {
-        // Bug 2: 确保语音消息有正确的 metadata
+        const messageId = crypto.randomUUID();
+        
+        // 保存用户语音到 IndexedDB
+        const { saveUserAudioBlob } = await import("@/lib/audio-cache");
+        await saveUserAudioBlob(messageId, blob);
+
         const userMessage: Message = {
-          id: crypto.randomUUID(),
+          id: messageId,
           conversationId: activeConversationId,
           role: "user",
           content: confirmedText,
@@ -277,7 +282,6 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           audioDuration: duration,
           metadata: { 
             inputType: "voice",
-            audioBlob: blob,
           },
         };
         addMessage(userMessage);

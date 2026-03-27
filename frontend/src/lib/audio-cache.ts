@@ -59,6 +59,22 @@ export async function saveAudio(messageId: string, audioChunks: string[]): Promi
 }
 
 /**
+ * 保存用户语音 Blob 到缓存
+ */
+export async function saveUserAudioBlob(messageId: string, blob: Blob): Promise<void> {
+  // 把 Blob 转成 base64
+  const arrayBuffer = await blob.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < uint8Array.length; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  const base64 = btoa(binary);
+  
+  await saveAudio(messageId, [base64]);
+}
+
+/**
  * 获取缓存的音频
  */
 export async function getAudio(messageId: string): Promise<CachedAudio | null> {

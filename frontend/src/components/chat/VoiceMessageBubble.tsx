@@ -3,36 +3,66 @@
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getAudio, createAudioUrl } from "@/lib/audio-cache";
 
 interface VoiceMessageBubbleProps {
+  messageId?: string;
   duration: number; // 毫秒
   audioUrl?: string;
   audioBlob?: Blob;
   isUser?: boolean;
-  transcription?: string;
   className?: string;
 }
 
 export function VoiceMessageBubble({
+  messageId,
   duration,
   audioUrl,
   audioBlob,
   isUser = true,
-  transcription,
   className,
 }: VoiceMessageBubbleProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [currentUrl, setCurrentUrl] = useState<string | null>(audioUrl || null);
+  const [currentUrl, setCurrentUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // 初始化音频 URL
   useEffect(() => {
-    if (audioBlob && !audioUrl) {
-      const url = URL.createObjectURL(audioBlob);
-      setCurrentUrl(url);
-      return () => URL.revokeObjectURL(url);
+    let mounted = true;
+    
+    async function loadAudio() {
+      // 优先用 audioBlob（实时录制）
+      if (audioBlob) {
+        const url = URL.createObjectURL(audioBlob);
+        if (mounted) setCurrentUrl(url);
+        return () => URL.revokeObjectURL(url);
+      }
+      
+      // 其次用 audioUrl（直接传入）
+      if (audioUrl) {
+        if (mounted) setCurrentUrl(audioUrl);
+        return;
+      }
+      
+      // 最后从缓存读取
+      if (messageId) {
+        try {
+          const cached = await getAudio(messageId);
+          if (cached?.audioChunks?.length > 0 && mounted) {
+            const url = createAudioUrl(cached.audioChunks);
+            setCurrentUrl(url);
+          }
+        } catch (e) {
+          console.warn('Failed to load cached audio:', e);
+        }
+      }
     }
-  }, [audioBlob, audioUrl]);
+    
+    loadAudio();
+    return () => { mounted = false; };
+  }, [messageId, audioBlob, audioUrl]);
 
   const formatDuration = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -78,6 +108,7 @@ export function VoiceMessageBubble({
 
   // 计算气泡宽度（基于时长）
   const bubbleWidth = Math.min(140 + (duration / 1000) * 4, 260);
+  const hasAudio = !!currentUrl;
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
@@ -87,20 +118,23 @@ export function VoiceMessageBubble({
           "relative flex items-center gap-3 px-3 py-2 rounded-2xl",
           isUser
             ? "bg-blue-500 text-white"
-            : "bg-gray-100 text-gray-700 border border-gray-200"
+            : "bg-gray-100 text-gray-700 border border-gray-200",
+          !hasAudio && "opacity-60"
         )}
         style={{ width: `${bubbleWidth}px` }}
       >
         {/* 播放按钮 */}
         <button
           onClick={handlePlay}
+          disabled={!hasAudio}
           aria-label={isPlaying ? "暂停" : "播放"}
           className={cn(
             "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
             "transition-transform active:scale-95",
             isUser
               ? "bg-white text-blue-500"
-              : "bg-white text-gray-600 shadow-sm"
+              : "bg-white text-gray-600 shadow-sm",
+            !hasAudio && "cursor-not-allowed"
           )}
         >
           {isPlaying ? (
@@ -156,16 +190,6 @@ export function VoiceMessageBubble({
           </div>
         )}
       </div>
-
-      {/* 转写文字 */}
-      {transcription && (
-        <p className={cn(
-          "text-xs px-1",
-          isUser ? "text-blue-600" : "text-gray-500"
-        )}>
-          "{transcription}"
-        </p>
-      )}
     </div>
   );
 }
