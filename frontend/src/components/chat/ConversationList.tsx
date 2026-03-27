@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { Plus, MessageCircle, Trash2 } from "lucide-react";
+import { Plus, MessageCircle, Trash2, AlertTriangle } from "lucide-react";
 import type { Conversation } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -27,28 +27,63 @@ export function ConversationList({
   className,
 }: ConversationListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const handleDelete = useCallback(
-    async (id: string, e: React.MouseEvent) => {
+    (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
-
       if (deletingId) return;
-
-      const confirmed = window.confirm("确定要删除这个对话吗？");
-      if (!confirmed) return;
-
-      setDeletingId(id);
-      try {
-        await onDelete?.(id);
-      } finally {
-        setDeletingId(null);
-      }
+      setConfirmId(id);
     },
-    [deletingId, onDelete]
+    [deletingId]
   );
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!confirmId) return;
+    const id = confirmId;
+    setConfirmId(null);
+    setDeletingId(id);
+    try {
+      await onDelete?.(id);
+    } finally {
+      setDeletingId(null);
+    }
+  }, [confirmId, onDelete]);
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
+      {/* 自定义删除确认弹窗 */}
+      {confirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setConfirmId(null)}
+          />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-amber-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">确认删除</h3>
+            <p className="text-gray-500 mb-6">
+              确定要删除这个会话吗？<br />此操作不可撤销。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmId(null)}
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* New conversation button */}
       <button
         onClick={onCreate}
