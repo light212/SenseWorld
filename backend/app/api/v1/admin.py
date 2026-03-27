@@ -317,22 +317,17 @@ async def test_model_connection(
 
     try:
         protocol = data.config.get("protocol", "openai_compatible")
+        api_key = data.config.get("api_key")
 
-        if protocol == "websocket":
-            ws_url = data.config.get("ws_url")
-            if not ws_url:
-                return ModelTestResponse(
-                    success=False,
-                    message="WebSocket URL 未配置",
-                )
+        # 所有协议都需要 API Key
+        if not api_key:
+            return ModelTestResponse(
+                success=False,
+                message="API Key 未配置",
+            )
 
-        elif protocol in ("openai_compatible", "dashscope_sdk"):
-            api_key = data.config.get("api_key")
-            if not api_key:
-                return ModelTestResponse(
-                    success=False,
-                    message="API Key 未配置",
-                )
+        # WebSocket 协议（如 Omni 实时模型）使用固定 URL，不需要用户配置
+        # DashScope SDK 和 OpenAI 兼容协议只检查 API Key
 
         latency = int((time.time() - start) * 1000)
         return ModelTestResponse(
