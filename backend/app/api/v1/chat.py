@@ -171,7 +171,7 @@ async def send_message_stream(
         extra_data={"input_type": "text"},
     )
     db.add(user_message)
-    await db.flush()
+    await db.commit()
 
     # Get recent messages for context
     msg_result = await db.execute(
