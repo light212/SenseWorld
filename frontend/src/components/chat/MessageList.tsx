@@ -40,18 +40,23 @@ export function MessageList({
 
   return (
     <div 
-      className={cn("flex flex-col gap-4 p-4 bg-gray-50 min-h-full", className)}
+      className={cn("flex flex-col gap-2 p-4 bg-gray-50 min-h-full", className)}
       role="log"
       aria-live="polite"
       aria-label="消息列表"
     >
-      {messages.map((message, index) => (
-        <MessageItem 
-          key={message.id} 
-          message={message}
-          isNew={index === messages.length - 1}
-        />
-      ))}
+      {messages.map((message, index) => {
+        const prevMessage = messages[index - 1];
+        const showAvatar = !prevMessage || prevMessage.role !== message.role;
+        return (
+          <MessageItem 
+            key={message.id} 
+            message={message}
+            isNew={index === messages.length - 1}
+            showAvatar={showAvatar}
+          />
+        );
+      })}
 
       {/* Streaming message */}
       {isStreaming && (
@@ -89,9 +94,10 @@ export function MessageList({
 interface MessageItemProps {
   message: Message;
   isNew?: boolean;
+  showAvatar?: boolean;
 }
 
-function MessageItem({ message, isNew = false }: MessageItemProps) {
+function MessageItem({ message, isNew = false, showAvatar = true }: MessageItemProps) {
   const isUser = message.role === "user";
   
   // Bug 2: 修复语音消息判断逻辑
@@ -103,25 +109,28 @@ function MessageItem({ message, isNew = false }: MessageItemProps) {
       className={cn(
         "flex gap-3", 
         isUser && "flex-row-reverse",
-        isNew && "animate-slide-up"
+        isNew && "animate-slide-up",
+        !showAvatar && (isUser ? "pr-11" : "pl-11")
       )}
     >
       {/* Avatar */}
-      <div
-        className={cn(
-          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          isUser 
-            ? "bg-gradient-to-br from-blue-500 to-purple-600" 
-            : "bg-gradient-to-br from-blue-100 to-purple-100"
-        )}
-        aria-hidden="true"
-      >
-        {isUser ? (
-          <User className="w-4 h-4 text-white" />
-        ) : (
-          <Bot className="w-4 h-4 text-blue-600" />
-        )}
-      </div>
+      {showAvatar ? (
+        <div
+          className={cn(
+            "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
+            isUser 
+              ? "bg-gradient-to-br from-blue-500 to-purple-600" 
+              : "bg-gradient-to-br from-blue-500 to-purple-500"
+          )}
+          aria-hidden="true"
+        >
+          {isUser ? (
+            <User className="w-4 h-4 text-white" />
+          ) : (
+            <Bot className="w-4 h-4 text-white" />
+          )}
+        </div>
+      ) : null}
 
       {/* Content */}
       <div className={cn("flex-1 max-w-[80%]", isUser && "text-right")}>
