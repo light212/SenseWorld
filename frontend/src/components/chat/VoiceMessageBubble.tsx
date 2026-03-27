@@ -110,6 +110,15 @@ export function VoiceMessageBubble({
   const bubbleWidth = Math.min(140 + (duration / 1000) * 4, 260);
   const hasAudio = !!currentUrl;
 
+  // 如果没有音频且时长为 0，显示简化的无效状态
+  if (!hasAudio && duration === 0) {
+    return (
+      <div className={cn("text-xs text-gray-400 px-2 py-1", className)}>
+        语音已过期
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       {/* 语音条 */}

@@ -58,10 +58,6 @@ export function MessageList({
             {streamingContent ? (
               <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm p-3 shadow-sm">
                 <p className="whitespace-pre-wrap text-gray-800 text-[15px] leading-relaxed">{streamingContent}</p>
-                <div className="flex items-center gap-2 mt-2 text-gray-400">
-                  <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-xs">正在生成语音...</span>
-                </div>
               </div>
             ) : (
               <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
