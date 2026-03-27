@@ -121,6 +121,7 @@ export default function CapabilityDetailPage() {
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -170,11 +171,14 @@ export default function CapabilityDetailPage() {
   };
 
   const handleSetDefault = async (model: ModelConfig) => {
+    setSettingDefaultId(model.id);
     try {
       await adminApi.setDefaultModel(model.id);
       fetchModels();
     } catch (error) {
       console.error("Failed to set default:", error);
+    } finally {
+      setSettingDefaultId(null);
     }
   };
 
@@ -466,9 +470,17 @@ export default function CapabilityDetailPage() {
                   {!model.is_default && (
                     <button
                       onClick={() => handleSetDefault(model)}
-                      className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                      disabled={settingDefaultId === model.id}
+                      className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
                     >
-                      设为默认
+                      {settingDefaultId === model.id ? (
+                        <span className="flex items-center gap-1">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          设置中...
+                        </span>
+                      ) : (
+                        "设为默认"
+                      )}
                     </button>
                   )}
                   <button
