@@ -357,8 +357,6 @@ export class StreamingTTSPlayer {
     this.chunks = [];
     this.textProgressCallback = undefined;
     this.stateChangeCallback = undefined;
-
-    console.log('🔄 流式TTS播放器已销毁');
   }
 }
 

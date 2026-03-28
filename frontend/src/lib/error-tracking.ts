@@ -470,8 +470,6 @@ export class ErrorTracker {
     this.errorHistory = [];
     this.errorCounts.clear();
     this.isInitialized = false;
-
-    console.log('🔄 错误追踪系统已销毁');
   }
 }
 

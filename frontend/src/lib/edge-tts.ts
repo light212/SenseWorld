@@ -220,7 +220,6 @@ export class EdgeTTSEngine {
   private async loadModel(): Promise<void> {
     // 如果没有指定模型URL，直接跳过，使用降级方案
     if (!this.config.modelUrl) {
-      console.log('未配置边缘TTS模型，使用服务端TTS');
       return;
     }
 
@@ -457,8 +456,6 @@ export class EdgeTTSEngine {
     this.model = null;
     this.isModelLoaded = false;
     this.loadPromise = null;
-
-    console.log('🔄 边缘TTS引擎已销毁');
   }
 }
 
@@ -480,7 +477,6 @@ export const preloadCommonPhrases = async (): Promise<void> => {
 
   try {
     await edgeTTSEngine.synthesizeBatch(commonPhrases);
-    console.log('🎯 常用短语预加载完成');
   } catch (error) {
     console.warn('常用短语预加载失败:', error);
   }

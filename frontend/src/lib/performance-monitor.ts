@@ -128,8 +128,6 @@ export class PerformanceMonitor {
     if (this.config.enablePerformanceBudget) {
       this.setupPerformanceBudget();
     }
-
-    console.log('📊 性能监控已启动');
   }
 
   /**
@@ -143,8 +141,6 @@ export class PerformanceMonitor {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
     }
-
-    console.log('📊 性能监控已停止');
   }
 
   /**

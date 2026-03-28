@@ -44,8 +44,6 @@ export function RealtimeConversation({
 
   // Handle incoming events
   const handleEvent = useCallback((event: OmniEvent) => {
-    console.log('[Realtime] Event:', event.type, event.payload);
-    
     switch (event.type) {
       case 'omni_connected':
         setStatus('connected');

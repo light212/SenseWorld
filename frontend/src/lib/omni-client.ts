@@ -232,7 +232,6 @@ export class OmniClient {
       source.connect(this.audioWorklet);
 
       this.isRecording = true;
-      console.log('[OmniClient] Recording started');
     } catch (e) {
       console.error('[OmniClient] Failed to start recording:', e);
       throw e;
@@ -266,7 +265,6 @@ export class OmniClient {
     }
 
     this.isRecording = false;
-    console.log('[OmniClient] Recording stopped');
   }
 
   /**
@@ -363,7 +361,6 @@ export class OmniClient {
   disconnect(): void {
     if (this.state === 'idle' || this.state === 'disconnecting') return;
 
-    console.log('[OmniClient] Disconnecting intentionally');
     this.state = 'disconnecting';
 
     // Cancel any pending reconnect

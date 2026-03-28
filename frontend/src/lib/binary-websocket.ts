@@ -285,7 +285,6 @@ export class MultiplexedWebSocket {
     onClose: () => void = () => {}
   ): void {
     this.channels.set(channelId, { onMessage, onClose });
-    console.log(`📡 注册通道 ${channelId}`);
   }
 
   /**
@@ -293,7 +292,6 @@ export class MultiplexedWebSocket {
    */
   unregisterChannel(channelId: number): void {
     this.channels.delete(channelId);
-    console.log(`📡 注销通道 ${channelId}`);
   }
 
   /**
@@ -418,6 +416,7 @@ export class MultiplexedWebSocket {
       this.metrics.reconnectCount++;
 
       const delay = this.calculateReconnectDelay();
+      console.log(`🔄 ${delay}ms 后尝试重连 (${this.reconnectAttempts}/${this.config.reconnectAttempts})`);
 
       this.reconnectTimer = setTimeout(() => {
         this.connect().catch(console.error);
@@ -523,7 +522,6 @@ export class MultiplexedWebSocket {
 
     this.isConnected = false;
     this.messageQueue = [];
-    console.log('🔌 WebSocket连接已断开');
   }
 }
 
@@ -576,10 +574,4 @@ export class OpusEncoder {
 
     return pcmData;
   }
-}i] = int16Data[i] / 32768;
-    }
-
-    return pcmData;
-  }
-}  }
-}}
+}

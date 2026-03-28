@@ -127,8 +127,6 @@ export class ProfessionalAudioEngine {
 
       // 创建音频处理节点
       await this.setupAudioNodes();
-
-      console.log('🎵 专业音频引擎初始化完成');
     } catch (error) {
       console.error('音频引擎初始化失败:', error);
       throw new Error('音频引擎初始化失败');
@@ -427,4 +425,4 @@ class AudioProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('audio-processor', AudioProcessor);
-`;`;
+`;
