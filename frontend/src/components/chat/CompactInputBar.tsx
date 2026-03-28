@@ -375,7 +375,7 @@ export function CompactInputBar({
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full font-medium hover:opacity-90 transition-opacity"
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full font-medium hover:opacity-90 transition-opacity"
               >
                 设置完成，刷新页面
               </button>
@@ -433,7 +433,7 @@ export function CompactInputBar({
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full font-medium hover:opacity-90 transition-opacity"
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full font-medium hover:opacity-90 transition-opacity"
               >
                 刷新页面
               </button>
@@ -468,7 +468,7 @@ export function CompactInputBar({
           <button
             onClick={startRecording}
             disabled={disabled}
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             授权并开始录音
           </button>
@@ -490,7 +490,7 @@ export function CompactInputBar({
       <div className="px-4 py-3 border-t border-gray-200 bg-white">
         {/* 音频预览 */}
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-red-800 flex items-center justify-center text-white">
             <Mic className="w-5 h-5" />
           </div>
           
@@ -537,7 +537,7 @@ export function CompactInputBar({
           <button
             onClick={sendVoicePreview}
             disabled={voicePreview.isTranscribing || disabled}
-            className="flex-1 py-2 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-1"
+            className="flex-1 py-2 px-4 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-1"
           >
             <Send className="w-4 h-4" />
             发送
@@ -569,7 +569,7 @@ export function CompactInputBar({
         
         <button
           onClick={stopRecordingAndPreview}
-          className="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
+          className="px-4 py-1.5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
         >
           完成
         </button>
@@ -597,7 +597,7 @@ export function CompactInputBar({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder="输入消息..."
-        className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+        className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-300"
       />
 
       {/* 视频通话按钮 */}
@@ -614,8 +614,8 @@ export function CompactInputBar({
         className={cn(
           "p-2 rounded-full transition-colors disabled:opacity-50",
           isVideoCallActive
-            ? "bg-red-500 text-white hover:bg-red-600"
-            : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            ? "bg-red-600 text-white hover:bg-red-700 transition-colors"
+            : "bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
         )}
         title={isVideoCallActive ? "挂断视频通话" : "开始视频通话"}
         aria-label={isVideoCallActive ? "挂断视频通话" : "开始视频通话"}
@@ -628,7 +628,7 @@ export function CompactInputBar({
         <button
           onClick={handleSend}
           disabled={disabled}
-          className="p-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="p-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
           title="发送"
           aria-label="发送消息"
         >
@@ -638,7 +638,7 @@ export function CompactInputBar({
         <button
           onClick={startRecording}
           disabled={disabled}
-          className="p-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="p-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
           title="语音输入"
           aria-label="开始录音"
         >
