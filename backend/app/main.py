@@ -27,6 +27,17 @@ async def lifespan(app: FastAPI):
     """Application lifespan management."""
     logger.info("Starting SenseWorld Backend...")
 
+    # Security startup checks
+    if not settings.debug and settings.is_insecure_jwt_secret:
+        raise RuntimeError(
+            "JWT_SECRET must be set to a secure value in production "
+            "(current value is the default placeholder)"
+        )
+    if settings.encryption_key is None:
+        raise RuntimeError("ENCRYPTION_KEY must be set")
+    if len(settings.encryption_key) < 32:
+        raise RuntimeError("ENCRYPTION_KEY must be at least 32 characters")
+
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         cleanup_old_logs,

@@ -1,9 +1,10 @@
 """
 SystemSetting ORM model.
 """
-
 import uuid
 from datetime import datetime, timezone
+
+from typing import Optional
 
 from sqlalchemy import DateTime, String, Text
 from sqlalchemy.dialects.mysql import CHAR
@@ -38,7 +39,7 @@ class SystemSetting(Base):
         default="string",
         server_default="string",
     )
-    description: Mapped[str | None] = mapped_column(
+    description: Mapped[Optional[str]] = mapped_column(
         String(500),
         nullable=True,
     )
@@ -47,7 +48,7 @@ class SystemSetting(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    updated_by: Mapped[str | None] = mapped_column(
+    updated_by: Mapped[Optional[str]] = mapped_column(
         CHAR(36),
         nullable=True,
     )

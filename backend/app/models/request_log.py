@@ -1,9 +1,10 @@
 """
 RequestLog ORM model.
 """
-
 import uuid
 from datetime import datetime, timezone
+
+from typing import Optional
 
 from sqlalchemy import JSON, DateTime, Integer, String, Text
 from sqlalchemy.dialects.mysql import CHAR
@@ -27,12 +28,12 @@ class RequestLog(Base):
         nullable=False,
         index=True,
     )
-    conversation_id: Mapped[str | None] = mapped_column(
+    conversation_id: Mapped[Optional[str]] = mapped_column(
         CHAR(36),
         nullable=True,
         index=True,
     )
-    user_id: Mapped[str | None] = mapped_column(
+    user_id: Mapped[Optional[str]] = mapped_column(
         CHAR(36),
         nullable=True,
         index=True,
@@ -49,35 +50,35 @@ class RequestLog(Base):
         Integer,
         nullable=False,
     )
-    asr_latency_ms: Mapped[int | None] = mapped_column(
+    asr_latency_ms: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
     )
-    llm_latency_ms: Mapped[int | None] = mapped_column(
+    llm_latency_ms: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
     )
-    tts_latency_ms: Mapped[int | None] = mapped_column(
+    tts_latency_ms: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
     )
-    request_body: Mapped[str | None] = mapped_column(
+    request_body: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
     )
-    response_body: Mapped[str | None] = mapped_column(
+    response_body: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
     )
-    error_message: Mapped[str | None] = mapped_column(
+    error_message: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
     )
-    ip_address: Mapped[str | None] = mapped_column(
+    ip_address: Mapped[Optional[str]] = mapped_column(
         String(45),
         nullable=True,
     )
-    user_agent: Mapped[str | None] = mapped_column(
+    user_agent: Mapped[Optional[str]] = mapped_column(
         String(500),
         nullable=True,
     )

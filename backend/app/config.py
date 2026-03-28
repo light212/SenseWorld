@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     @property
+    def is_insecure_jwt_secret(self) -> bool:
+        return self.jwt_secret == "change-me-in-production"
+
+    @property
     def cors_origins_list(self) -> list[str]:
         """Parse CORS origins from comma-separated string."""
         return [origin.strip() for origin in self.cors_origins.split(",")]

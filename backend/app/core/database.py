@@ -2,7 +2,7 @@
 Database configuration and session management.
 """
 
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -48,7 +48,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 # Redis client
-redis_client: redis.Redis | None = None
+redis_client: Optional[redis.Redis] = None
 
 
 async def get_redis() -> redis.Redis:

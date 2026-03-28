@@ -1,9 +1,10 @@
 """
 ModelConfig ORM model for storing LLM/AI model configurations.
 """
-
 import uuid
 from datetime import datetime, timezone
+
+from typing import Optional
 
 from sqlalchemy import JSON, Boolean, DateTime, Numeric, String, Text
 from sqlalchemy.dialects.mysql import CHAR
@@ -38,7 +39,7 @@ class ModelConfig(Base):
         nullable=False,
         comment="Provider: dashscope, openai",
     )
-    api_key_encrypted: Mapped[str | None] = mapped_column(
+    api_key_encrypted: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
         comment="Encrypted API key",
