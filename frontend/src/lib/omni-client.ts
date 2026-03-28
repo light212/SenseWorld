@@ -37,6 +37,7 @@ export class OmniClient {
   private videoStream: MediaStream | null = null;
   private videoIntervalId: ReturnType<typeof setInterval> | null = null;
   private audioSentOnce = false;
+  private userIsSpeaking = false;
 
   constructor(config: OmniClientConfig) {
     this.config = config;
@@ -86,6 +87,12 @@ export class OmniClient {
     switch (event.type) {
       case 'omni_event':
         this.handleOmniEvent(event.payload);
+        // 根据 VAD 事件更新说话状态
+        if ((event.payload as Record<string, unknown>).type === 'input_audio_buffer.speech_started') {
+          this.userIsSpeaking = true;
+        } else if ((event.payload as Record<string, unknown>).type === 'input_audio_buffer.speech_stopped') {
+          this.userIsSpeaking = false;
+        }
         break;
       case 'omni_error':
       case 'error':
@@ -257,7 +264,7 @@ export class OmniClient {
   async startCamera(videoElement: HTMLVideoElement): Promise<void> {
     this.videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     videoElement.srcObject = this.videoStream;
-    this.videoIntervalId = setInterval(() => this._captureAndSendFrame(videoElement), 1000);
+    this.videoIntervalId = setInterval(() => this._captureAndSendFrame(videoElement), 500); // 2fps
   }
 
   /**
@@ -265,6 +272,7 @@ export class OmniClient {
    */
   private _captureAndSendFrame(videoElement: HTMLVideoElement): void {
     if (!this.audioSentOnce) return;
+    if (!this.userIsSpeaking) return; // 只在用户说话时发送视频帧
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     const canvas = document.createElement('canvas');
@@ -287,6 +295,7 @@ export class OmniClient {
     this.videoStream?.getTracks().forEach(t => t.stop());
     this.videoStream = null;
     this.audioSentOnce = false;
+    this.userIsSpeaking = false;
   }
 
   /**
