@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mic, Video, Zap, Eye, EyeOff, Mail, Lock, ArrowRight, User } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
+import { API_ENDPOINTS } from "@/lib/config";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,12 +47,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const endpoint = mode === "login" ? "/v1/auth/login" : "/v1/auth/register";
+      const endpoint = mode === "login" ? API_ENDPOINTS.auth.login : API_ENDPOINTS.auth.register;
       const body = mode === "login"
         ? { email, password }
         : { email, password, display_name: displayName || email.split("@")[0] };
 
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

@@ -11,6 +11,7 @@ export const API_ENDPOINTS = {
   // 认证
   auth: {
     login: `${API_BASE_URL}/v1/auth/login`,
+    register: `${API_BASE_URL}/v1/auth/register`,
     me: `${API_BASE_URL}/v1/auth/me`,
   },
   // 会话

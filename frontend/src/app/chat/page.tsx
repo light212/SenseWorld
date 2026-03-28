@@ -7,6 +7,7 @@ import { ChatWindow } from "@/components/chat/ChatWindow";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { useAuthStore, useAuthHydration } from "@/stores/authStore";
 import { useConversationStore } from "@/stores/conversationStore";
+import { API_ENDPOINTS } from "@/lib/config";
 import type { Conversation } from "@/types";
 
 export default function ChatPage() {
@@ -40,7 +41,7 @@ export default function ChatPage() {
 
     const fetchUser = async () => {
       try {
-        const response = await fetch("http://localhost:8000/v1/auth/me", {
+        const response = await fetch(API_ENDPOINTS.auth.me, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -68,7 +69,7 @@ export default function ChatPage() {
     const fetchConversations = async () => {
       setIsLoadingConversations(true);
       try {
-        const response = await fetch("http://localhost:8000/v1/conversations", {
+        const response = await fetch(API_ENDPOINTS.conversations, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -121,7 +122,7 @@ export default function ChatPage() {
 
       // 创建新会话
       try {
-        const response = await fetch("http://localhost:8000/v1/conversations", {
+        const response = await fetch(API_ENDPOINTS.conversations, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -159,7 +160,7 @@ export default function ChatPage() {
     if (!token) return;
 
     try {
-      const response = await fetch("http://localhost:8000/v1/conversations", {
+      const response = await fetch(API_ENDPOINTS.conversations, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -194,7 +195,7 @@ export default function ChatPage() {
       if (!token) return;
 
       try {
-        const response = await fetch(`http://localhost:8000/v1/conversations/${id}`, {
+        const response = await fetch(API_ENDPOINTS.conversation(id), {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });

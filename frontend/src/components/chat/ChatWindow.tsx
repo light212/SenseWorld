@@ -20,6 +20,7 @@ import { memoryMonitor } from "@/lib/memory-monitor";
 import { performanceMonitor } from "@/lib/performance-monitor";
 import { errorTracker, logError, logWarning } from "@/lib/error-tracking";
 import { useToast } from "@/components/ui/Toast";
+import { API_ENDPOINTS } from "@/lib/config";
 import type { Message } from "@/types";
 
 /**
@@ -215,7 +216,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     const loadMessages = async () => {
       try {
         const response = await fetch(
-          `http://localhost:8000/v1/conversations/${activeConversationId}/messages`,
+          API_ENDPOINTS.conversationMessages(activeConversationId),
           { headers: { Authorization: `Bearer ${tokenRef.current}` }, signal: abortSignal }
         );
         if (response.ok) {
@@ -291,7 +292,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     let aiMessageId = "";
 
     try {
-      const response = await fetch("http://localhost:8000/v1/chat/stream", {
+      const response = await fetch(API_ENDPOINTS.chatStream, {
         method: "POST",
         signal: abortController.signal,
         headers: {

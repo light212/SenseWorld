@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WebSocketMessage, WebSocketMessageType } from "@/types";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws/chat";
+import { WS_URL } from "@/lib/config";
 
 interface UseWebSocketOptions {
   token: string | null;
