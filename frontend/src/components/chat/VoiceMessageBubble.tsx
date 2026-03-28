@@ -37,12 +37,16 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     const loadFromCache = async () => {
       try {
         const cached = await getAudio(messageId);
+        console.log('[VoiceMessageBubble] IndexedDB result:', messageId.slice(0,8), cached);
         if (cached && cached.audioChunks && cached.audioChunks.length > 0) {
           const url = createAudioUrl(cached.audioChunks);
+          console.log('[VoiceMessageBubble] Created audio URL:', url);
           setAudioUrl(url);
+        } else {
+          console.log('[VoiceMessageBubble] No cached audio found');
         }
       } catch (e) {
-        // Ignore cache errors
+        console.warn('[VoiceMessageBubble] Cache load error:', e);
       }
     };
     
