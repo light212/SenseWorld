@@ -45,6 +45,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   // 视频通话状态
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [aiTranscript, setAiTranscript] = useState("");
   const omniClientRef = useRef<OmniClient | null>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
   // Omni PCM 音频串行播放器
@@ -390,7 +391,10 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           const payload = event.payload as Record<string, unknown>;
           // AI 开始/停止说话检测
           if (payload.type === 'response.audio.delta') setIsAiSpeaking(true);
-          if (payload.type === 'response.audio.done' || payload.type === 'response.done') setIsAiSpeaking(false);
+          if (payload.type === 'response.audio.done' || payload.type === 'response.done') {
+            setIsAiSpeaking(false);
+            if (payload.type === 'response.done') setAiTranscript("");
+          }
           // AI 调用 end_call 工具：自动挂断
           if (payload.type === 'response.function_call_arguments.done' && payload.name === 'end_call') {
             setTimeout(() => handleVideoCallToggle(), 1500); // 延迟让 AI 说完再见
@@ -411,6 +415,9 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           setIsVideoCallActive(false);
           setIsAiSpeaking(false);
         }
+      },
+      onText: (text) => {
+        setAiTranscript(prev => prev + text);
       },
       onAudio: (audioData) => {
         // 串行调度 PCM delta，避免叠音
@@ -480,19 +487,24 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           playsInline
           className="w-40 h-30 rounded-lg object-cover bg-gray-800"
         />
-          <div className="flex flex-col items-center gap-2">
-            <div className={cn(
-              "w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center",
-              isAiSpeaking && "animate-pulse"
-            )}>
-              <Bot className="w-8 h-8 text-white" />
-            </div>
-            {isAiSpeaking && (
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0",
+                isAiSpeaking && "animate-pulse"
+              )}>
+                <Bot className="w-8 h-8 text-white" />
               </div>
+              {isAiSpeaking && (
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              )}
+            </div>
+            {aiTranscript && (
+              <p className="text-sm text-gray-200 text-center max-w-xs line-clamp-2">{aiTranscript}</p>
             )}
           </div>
           <button
