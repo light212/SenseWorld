@@ -81,21 +81,41 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     };
   }, [audioUrl]);
 
+  // 确保 audio 元素初始化
+  useEffect(() => {
+    if (audioUrl && !audioRef.current) {
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => {
+        setIsPlaying(false);
+        currentPlayingAudio = null;
+      };
+    }
+    
+    return () => {
+      // 清理
+      if (audioRef.current && !audioRef.current.src.includes('blob:')) {
+        // 只清理非 blob URL
+        audioRef.current = null;
+      }
+    };
+  }, [audioUrl]);
+
   const handleClick = async () => {
-    const audio = audioRef.current;
-    
-    // Debug
-    console.log('[VoiceMessageBubble] handleClick:', { 
-      hasAudio: !!audio, 
-      hasUrl: !!audioUrl, 
-      audioUrl,
-      propsAudioUrl 
-    });
-    
-    if (!audio || !audioUrl) {
-      console.warn('[VoiceMessageBubble] Cannot play: no audio or url');
+    if (!audioUrl) {
+      console.warn('[VoiceMessageBubble] Cannot play: no url');
       return;
     }
+    
+    // 确保 audio 存在
+    if (!audioRef.current) {
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => {
+        setIsPlaying(false);
+        currentPlayingAudio = null;
+      };
+    }
+    
+    const audio = audioRef.current;
 
     if (isPlaying) {
       // 当前正在播放，暂停
