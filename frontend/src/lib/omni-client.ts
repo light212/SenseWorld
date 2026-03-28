@@ -34,6 +34,9 @@ export class OmniClient {
   private mediaStream: MediaStream | null = null;
   private audioWorklet: AudioWorkletNode | null = null;
   private isRecording = false;
+  private videoStream: MediaStream | null = null;
+  private videoIntervalId: ReturnType<typeof setInterval> | null = null;
+  private audioSentOnce = false;
 
   constructor(config: OmniClientConfig) {
     this.config = config;
@@ -207,6 +210,7 @@ export class OmniClient {
       type: 'audio_chunk',
       payload: { audio: base64 },
     }));
+    this.audioSentOnce = true;
   }
 
   /**
@@ -235,11 +239,50 @@ export class OmniClient {
   }
 
   /**
+   * Start camera capture and send frames to server
+   */
+  async startCamera(videoElement: HTMLVideoElement): Promise<void> {
+    this.videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    videoElement.srcObject = this.videoStream;
+    this.videoIntervalId = setInterval(() => this._captureAndSendFrame(videoElement), 1000);
+  }
+
+  /**
+   * Capture a frame from the video element and send it to server
+   */
+  private _captureAndSendFrame(videoElement: HTMLVideoElement): void {
+    if (!this.audioSentOnce) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = videoElement.videoWidth || 640;
+    canvas.height = videoElement.videoHeight || 480;
+    canvas.getContext('2d')!.drawImage(videoElement, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+    const base64 = dataUrl.split(',')[1];
+    this.ws.send(JSON.stringify({ type: 'image_frame', payload: { image: base64 } }));
+  }
+
+  /**
+   * Stop camera capture and release resources
+   */
+  stopCamera(): void {
+    if (this.videoIntervalId) {
+      clearInterval(this.videoIntervalId);
+      this.videoIntervalId = null;
+    }
+    this.videoStream?.getTracks().forEach(t => t.stop());
+    this.videoStream = null;
+    this.audioSentOnce = false;
+  }
+
+  /**
    * Disconnect from server
    */
   disconnect(): void {
+    this.stopCamera();
     this.stopRecording();
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
