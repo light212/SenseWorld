@@ -105,10 +105,54 @@ class OmniRealtimeService:
             logger.error(f"Failed to connect: {e}")
             return False
 
+    def send_session_update(self, instructions: str = ""):
+        """
+        Send session.update event to configure the session.
+
+        Args:
+            instructions: Optional system instructions string
+        """
+        session = {
+            "modalities": ["audio", "text"],
+            "voice": "Chelsie",
+            "input_audio_format": "pcm",
+            "output_audio_format": "pcm",
+            "turn_detection": {
+                "type": "server_vad",
+                "threshold": 0.5,
+                "silence_duration_ms": 800,
+            },
+            "max_tokens": 16384,
+            "repetition_penalty": 1.05,
+        }
+        if instructions:
+            session["instructions"] = instructions
+
+        event = {
+            "type": "session.update",
+            "session": session,
+        }
+        if not self.ws or not self._is_connected:
+            raise RuntimeError("Not connected")
+        self.ws.send(json.dumps(event))
+
+    def send_video_frame(self, image_data: bytes):
+        """
+        Send a video frame to the conversation.
+
+        Args:
+            image_data: JPEG image bytes
+        """
+        image_base64 = base64.b64encode(image_data).decode()
+        self.send_event("input_image_buffer.append", {
+            "image": image_base64
+        })
+
     def _on_open(self, ws):
         """WebSocket opened."""
         logger.info(f"Connected to DashScope Omni: {self.config.url}")
         self._is_connected = True
+        self.send_session_update()
         self._trigger("on_open")
 
     def _on_message(self, ws, message: str):
