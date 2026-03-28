@@ -13,7 +13,7 @@ import { useConversationStore } from "@/stores/conversationStore";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { saveAudio, cleanupOldAudio } from "@/lib/audio-cache";
-import { OmniClient } from "@/lib/omni-client";
+import { OmniClient, playAudio } from "@/lib/omni-client";
 import { useToast } from "@/components/ui/Toast";
 import type { Message } from "@/types";
 
@@ -391,6 +391,9 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           setIsVideoCallActive(false);
           setIsAiSpeaking(false);
         }
+      },
+      onAudio: (audioData) => {
+        playAudio(audioData).catch(console.error);
       },
       onError: () => {
         toast.error('视频通话连接失败');

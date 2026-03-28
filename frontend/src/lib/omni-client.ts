@@ -96,21 +96,34 @@ export class OmniClient {
 
   /**
    * Handle Omni-specific events (audio, text responses)
+   * DashScope Realtime API format: {type: "response.audio.delta", delta: "<base64_pcm>"}
    */
   private handleOmniEvent(payload: Record<string, unknown>) {
-    // DashScope Omni event structure
-    const output = payload.output as Record<string, unknown> | undefined;
-    
-    if (output) {
-      // Text response
-      if (output.text) {
-        this.config.onText?.(output.text as string);
+    const eventType = payload.type as string | undefined;
+
+    // Realtime API: audio delta
+    if (eventType === 'response.audio.delta') {
+      const delta = payload.delta as string | undefined;
+      if (delta) {
+        const audioData = this.base64ToArrayBuffer(delta);
+        this.config.onAudio?.(audioData);
       }
-      
-      // Audio response (base64 encoded)
+      return;
+    }
+
+    // Realtime API: text delta
+    if (eventType === 'response.text.delta' || eventType === 'response.audio_transcript.delta') {
+      const delta = payload.delta as string | undefined;
+      if (delta) this.config.onText?.(delta);
+      return;
+    }
+
+    // Fallback: legacy output format
+    const output = payload.output as Record<string, unknown> | undefined;
+    if (output) {
+      if (output.text) this.config.onText?.(output.text as string);
       if (output.audio) {
-        const audioBase64 = output.audio as string;
-        const audioData = this.base64ToArrayBuffer(audioBase64);
+        const audioData = this.base64ToArrayBuffer(output.audio as string);
         this.config.onAudio?.(audioData);
       }
     }
