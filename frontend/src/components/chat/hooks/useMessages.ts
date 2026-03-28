@@ -135,7 +135,12 @@ export function useMessages(
 
   // 会话变化时自动加载消息
   useEffect(() => {
-    if (!activeConversationId) return;
+    if (!activeConversationId) {
+      console.log('[useMessages] No activeConversationId, skipping load');
+      return;
+    }
+    
+    console.log('[useMessages] Loading messages for conversation:', activeConversationId?.slice(0, 8));
 
     // 取消上一个未完成的请求，立即创建新的 controller
     loadAbortRef.current?.abort();
