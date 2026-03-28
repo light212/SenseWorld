@@ -52,8 +52,10 @@ export interface UsageSummary {
   total_calls: number;
   total_input_tokens: number;
   total_output_tokens: number;
-  total_cost: number;
-  by_model_type: Record<string, { calls: number; cost: number }>;
+  total_tokens: number;
+  avg_latency_ms: number;
+  success_rate: number;
+  by_model_type: Record<string, { calls: number; total_tokens: number; avg_latency_ms: number }>;
 }
 
 export interface UsageTrendPoint {
@@ -61,16 +63,19 @@ export interface UsageTrendPoint {
   calls: number;
   input_tokens: number;
   output_tokens: number;
-  cost: number;
+  total_tokens: number;
+  avg_latency_ms: number;
 }
 
 export interface ModelUsageStats {
   model_type: string;
   model_name: string;
+  provider: string;
   calls: number;
   input_tokens: number;
   output_tokens: number;
-  cost: number;
+  total_tokens: number;
+  avg_latency_ms: number;
   percentage: number;
 }
 
