@@ -38,6 +38,10 @@ export class OmniClient {
   private videoIntervalId: ReturnType<typeof setInterval> | null = null;
   private audioSentOnce = false;
   private userIsSpeaking = false;
+  private reconnectAttempts = 0;
+  private readonly maxReconnectAttempts = 3;
+  private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private intentionalDisconnect = false;
 
   constructor(config: OmniClientConfig) {
     this.config = config;
@@ -73,7 +77,23 @@ export class OmniClient {
 
       this.ws.onclose = () => {
         console.log('[OmniClient] Disconnected');
-        this.config.onClose?.();
+        if (!this.intentionalDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.reconnectAttempts++;
+          const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 10000);
+          console.log(`[OmniClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+          this.reconnectTimeoutId = setTimeout(async () => {
+            try {
+              await this.connect();
+              await this.startRecording();
+            } catch (e) {
+              console.error('[OmniClient] Reconnect failed:', e);
+              this.config.onClose?.();
+            }
+          }, delay);
+        } else {
+          this.reconnectAttempts = 0;
+          this.config.onClose?.();
+        }
       };
     });
   }
@@ -302,6 +322,11 @@ export class OmniClient {
    * Disconnect from server
    */
   disconnect(): void {
+    this.intentionalDisconnect = true;
+    if (this.reconnectTimeoutId) {
+      clearTimeout(this.reconnectTimeoutId);
+      this.reconnectTimeoutId = null;
+    }
     this.stopCamera();
     this.stopRecording();
 
@@ -309,6 +334,8 @@ export class OmniClient {
       this.ws.close();
       this.ws = null;
     }
+    this.reconnectAttempts = 0;
+    this.intentionalDisconnect = false;
   }
 
   /**
