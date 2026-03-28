@@ -18,6 +18,8 @@ interface CompactInputBarProps {
   onTextSend: (text: string) => void;
   onVoiceRecord: (blob: Blob, duration: number, confirmedText: string) => void;
   onVideoSelect?: (file: File) => void;
+  onVideoCallToggle?: () => void;
+  isVideoCallActive?: boolean;
   disabled?: boolean;
 }
 
@@ -28,6 +30,8 @@ export function CompactInputBar({
   onTextSend,
   onVoiceRecord,
   onVideoSelect,
+  onVideoCallToggle,
+  isVideoCallActive = false,
   disabled = false,
 }: CompactInputBarProps) {
   const toast = useToast();
@@ -596,7 +600,7 @@ export function CompactInputBar({
         className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
       />
 
-      {/* 视频按钮（预留） */}
+      {/* 视频通话按钮 */}
       <input
         ref={videoInputRef}
         type="file"
@@ -605,11 +609,16 @@ export function CompactInputBar({
         className="hidden"
       />
       <button
-        onClick={() => videoInputRef.current?.click()}
-        disabled={disabled || !onVideoSelect}
-        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
-        title="发送视频"
-        aria-label="发送视频"
+        onClick={onVideoCallToggle}
+        disabled={disabled || !onVideoCallToggle}
+        className={cn(
+          "p-2 rounded-full transition-colors disabled:opacity-50",
+          isVideoCallActive
+            ? "bg-red-500 text-white hover:bg-red-600"
+            : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+        )}
+        title={isVideoCallActive ? "挂断视频通话" : "开始视频通话"}
+        aria-label={isVideoCallActive ? "挂断视频通话" : "开始视频通话"}
       >
         <Video className="w-5 h-5" />
       </button>
