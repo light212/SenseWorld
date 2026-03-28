@@ -19,6 +19,7 @@ from app.core.database import get_db, async_session_maker
 from app.core.security import get_current_user_id
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.models.usage_log import UsageLog
 from app.services.llm_service import get_llm_service, get_llm_service_from_db
 from app.services.tts_service import get_tts_service, get_tts_service_from_db
 
@@ -100,7 +101,7 @@ async def send_message(
 
     # Call LLM
     llm_service = get_llm_service()
-    ai_response = await llm_service.chat(llm_messages)
+    ai_response, input_tokens, output_tokens = await llm_service.chat(llm_messages)
 
     # Save AI message
     ai_message = Message(
@@ -117,6 +118,17 @@ async def send_message(
     conversation.last_message_at = datetime.now(timezone.utc)
     if not conversation.title:
         conversation.title = data.content[:50] + ("..." if len(data.content) > 50 else "")
+
+    # Write usage log
+    db.add(UsageLog(
+        model_type="llm",
+        model_name=llm_service.model,
+        user_id=user_id,
+        conversation_id=data.conversation_id,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cost=0,
+    ))
 
     await db.commit()
     await db.refresh(ai_message)
@@ -172,7 +184,8 @@ async def send_message_stream(
         role="user",
         content=data.content,
         has_audio=data.input_type == "voice",
-        extra_data={"input_type": data.input_type, "audio_duration": data.audio_duration},
+        audio_duration=data.audio_duration,
+        extra_data={"input_type": data.input_type},
     )
     db.add(user_message)
     await db.commit()
@@ -202,10 +215,16 @@ async def send_message_stream(
         sentence_buffer = ""
         message_id = str(uuid.uuid4())
         conversation_id = data.conversation_id
+        _usage = [0, 0]  # [input_tokens, output_tokens]
+        _tts_chars = [0]  # cumulative TTS character count
+
+        def _on_usage(inp: int, out: int) -> None:
+            _usage[0] = inp
+            _usage[1] = out
 
         try:
             # 流式获取 LLM 响应
-            async for chunk in llm_service.chat_stream(llm_messages):
+            async for chunk in llm_service.chat_stream(llm_messages, on_usage=_on_usage):
                 full_response += chunk
                 sentence_buffer += chunk
 
@@ -226,6 +245,7 @@ async def send_message_stream(
                         try:
                             logger.info(f"TTS: synthesizing sentence: {sentence[:30]}...")
                             audio_data = await tts_service.synthesize(sentence)
+                            _tts_chars[0] += len(sentence)
                             logger.info(f"TTS: got audio data, length: {len(audio_data)}")
                             import base64
                             audio_base64 = base64.b64encode(audio_data).decode('utf-8')
@@ -239,6 +259,7 @@ async def send_message_stream(
             if sentence_buffer.strip():
                 try:
                     audio_data = await tts_service.synthesize(sentence_buffer)
+                    _tts_chars[0] += len(sentence_buffer)
                     import base64
                     audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                     yield f"event: audio\ndata: {json.dumps({'audio_base64': audio_base64, 'text': sentence_buffer}, ensure_ascii=False)}\n\n"
@@ -272,11 +293,31 @@ async def send_message_stream(
                         if not conv.title or conv.title == "新对话":
                             try:
                                 title_prompt = f"根据以下对话生成一个简短的标题（不超过20字，不要引号）：\n用户：{data.content}\nAI：{full_response[:200]}"
-                                title_response = await llm_service.chat([{"role": "user", "content": title_prompt}], max_tokens=30)
+                                title_response, _, _ = await llm_service.chat([{"role": "user", "content": title_prompt}], max_tokens=30)
                                 conv.title = title_response.strip()[:30]
                             except Exception as e:
                                 logger.warning(f"Failed to generate title: {e}")
                                 conv.title = data.content[:30] + ("..." if len(data.content) > 30 else "")
+
+                    save_db.add(UsageLog(
+                        model_type="llm",
+                        model_name=llm_service.model,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        input_tokens=_usage[0],
+                        output_tokens=_usage[1],
+                        cost=0,
+                    ))
+                    if _tts_chars[0] > 0:
+                        save_db.add(UsageLog(
+                            model_type="tts",
+                            model_name=tts_service.model,
+                            user_id=user_id,
+                            conversation_id=conversation_id,
+                            input_tokens=_tts_chars[0],
+                            output_tokens=0,
+                            cost=0,
+                        ))
 
                     await save_db.commit()
                     logger.info(f"Saved AI message {message_id} to conversation {conversation_id}")

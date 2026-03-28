@@ -2,11 +2,15 @@
 Speech API routes (ASR and TTS) and Vision API.
 """
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import get_db
+from app.core.security import get_current_user_id
+from app.models.usage_log import UsageLog
 from app.schemas.message import SynthesizeRequest, TranscriptionResult
 from app.services.asr_service import get_asr_service
 from app.services.tts_service import get_tts_service
@@ -19,6 +23,8 @@ router = APIRouter(prefix="/speech", tags=["speech"])
 async def transcribe_audio(
     audio: UploadFile = File(...),
     language: str = Form(default="zh"),
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ) -> TranscriptionResult:
     """
     Transcribe audio to text using ASR service.
@@ -49,6 +55,17 @@ async def transcribe_audio(
         filename=audio.filename or "audio.webm",
     )
 
+    # Write usage log
+    db.add(UsageLog(
+        model_type="asr",
+        model_name=asr_service.model,
+        user_id=user_id,
+        input_tokens=result.duration_ms // 1000 if result.duration_ms else 0,
+        output_tokens=0,
+        cost=0,
+    ))
+    await db.commit()
+
     return TranscriptionResult(
         text=result.text,
         confidence=result.confidence,
@@ -60,6 +77,8 @@ async def transcribe_audio(
 @router.post("/synthesize")
 async def synthesize_speech(
     data: SynthesizeRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ) -> Response:
     """
     Convert text to speech using TTS service.
@@ -75,6 +94,16 @@ async def synthesize_speech(
         voice=data.voice,
         speed=data.speed,
     )
+
+    db.add(UsageLog(
+        model_type="tts",
+        model_name=tts_service.model,
+        user_id=user_id,
+        input_tokens=len(data.text),
+        output_tokens=0,
+        cost=0,
+    ))
+    await db.commit()
 
     return Response(
         content=audio_data,
@@ -103,6 +132,8 @@ class VisionResponse(BaseModel):
 async def understand_image(
     image: UploadFile = File(...),
     prompt: str = Form(default="请描述这张图片的内容"),
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ) -> VisionResponse:
     """
     Understand an image using vision AI model.
@@ -140,6 +171,19 @@ async def understand_image(
         filename=image.filename or "image.jpg",
     )
 
+    logger.info(f"Vision usage: {result.usage}")
+    input_tokens = result.usage.get("input_tokens", 0) if isinstance(result.usage, dict) else 0
+    output_tokens = result.usage.get("output_tokens", 0) if isinstance(result.usage, dict) else 0
+    db.add(UsageLog(
+        model_type="vd",
+        model_name=vision_service.model,
+        user_id=user_id,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cost=0,
+    ))
+    await db.commit()
+
     return VisionResponse(
         text=result.text,
         model=result.model,
@@ -150,13 +194,18 @@ async def understand_image(
 @router.post("/vision/understand-base64", response_model=VisionResponse)
 async def understand_image_base64(
     data: VisionRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ) -> VisionResponse:
     """
     Understand an image from base64 string.
-    
+
     Accepts: Base64 encoded image data.
     Returns: AI's description/understanding of the image.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     # Call vision service
     vision_service = get_vision_service()
     result = await vision_service.understand_image_base64(
@@ -164,6 +213,19 @@ async def understand_image_base64(
         prompt=data.prompt,
         mime_type=data.mime_type,
     )
+
+    logger.info(f"Vision usage: {result.usage}")
+    input_tokens = result.usage.get("input_tokens", 0) if isinstance(result.usage, dict) else 0
+    output_tokens = result.usage.get("output_tokens", 0) if isinstance(result.usage, dict) else 0
+    db.add(UsageLog(
+        model_type="vd",
+        model_name=vision_service.model,
+        user_id=user_id,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cost=0,
+    ))
+    await db.commit()
 
     return VisionResponse(
         text=result.text,

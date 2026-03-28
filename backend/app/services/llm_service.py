@@ -3,7 +3,7 @@ LLM (Large Language Model) service using OpenAI API.
 """
 
 import logging
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Callable, Optional
 
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,7 +48,7 @@ class LLMService:
         self,
         messages: list[dict],
         max_tokens: int = 1000,
-    ) -> str:
+    ) -> tuple[str, int, int]:
         """
         Generate a chat completion.
 
@@ -57,7 +57,7 @@ class LLMService:
             max_tokens: Maximum tokens in response
 
         Returns:
-            Generated response text
+            Tuple of (response text, input_tokens, output_tokens)
         """
         try:
             # Prepend system message
@@ -72,7 +72,9 @@ class LLMService:
                 max_tokens=max_tokens,
             )
 
-            return response.choices[0].message.content or ""
+            input_tokens = response.usage.prompt_tokens if response.usage else 0
+            output_tokens = response.usage.completion_tokens if response.usage else 0
+            return response.choices[0].message.content or "", input_tokens, output_tokens
 
         except Exception as e:
             logger.error(f"LLM chat failed: {e}")
@@ -82,6 +84,7 @@ class LLMService:
         self,
         messages: list[dict],
         max_tokens: int = 1000,
+        on_usage: Optional[Callable[[int, int], None]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a chat completion.
@@ -107,6 +110,7 @@ class LLMService:
                 messages=all_messages,
                 max_tokens=max_tokens,
                 stream=True,
+                stream_options={"include_usage": True},
             )
 
             logger.info("LLM stream started")
@@ -116,6 +120,8 @@ class LLMService:
                     content = chunk.choices[0].delta.content
                     logger.debug(f"LLM chunk: {content[:50]}...")
                     yield content
+                if chunk.usage and on_usage:
+                    on_usage(chunk.usage.prompt_tokens, chunk.usage.completion_tokens)
 
             logger.info("LLM stream completed")
 

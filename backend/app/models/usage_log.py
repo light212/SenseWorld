@@ -1,9 +1,10 @@
 """
 UsageLog ORM model.
 """
-
 import uuid
 from datetime import datetime, timezone
+
+from typing import Optional
 
 from sqlalchemy import JSON, DateTime, Numeric, String
 from sqlalchemy.dialects.mysql import CHAR
@@ -31,12 +32,12 @@ class UsageLog(Base):
         String(100),
         nullable=False,
     )
-    user_id: Mapped[str | None] = mapped_column(
+    user_id: Mapped[Optional[str]] = mapped_column(
         CHAR(36),
         nullable=True,
         index=True,
     )
-    conversation_id: Mapped[str | None] = mapped_column(
+    conversation_id: Mapped[Optional[str]] = mapped_column(
         CHAR(36),
         nullable=True,
         index=True,
