@@ -124,6 +124,19 @@ class OmniRealtimeService:
             },
             "max_tokens": 16384,
             "repetition_penalty": 1.05,
+            "tools": [
+                {
+                    "type": "function",
+                    "name": "end_call",
+                    "description": "当用户明确表达结束对话的意图时调用，例如说再见、拜拜、结束通话、挂断等。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            ],
+            "tool_choice": "auto",
         }
         if instructions:
             session["instructions"] = instructions

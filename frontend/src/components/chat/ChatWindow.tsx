@@ -391,6 +391,10 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           // AI 开始/停止说话检测
           if (payload.type === 'response.audio.delta') setIsAiSpeaking(true);
           if (payload.type === 'response.audio.done' || payload.type === 'response.done') setIsAiSpeaking(false);
+          // AI 调用 end_call 工具：自动挂断
+          if (payload.type === 'response.function_call_arguments.done' && payload.name === 'end_call') {
+            setTimeout(() => handleVideoCallToggle(), 1500); // 延迟让 AI 说完再见
+          }
           // 用户开始说话：立即打断 AI 播放
           if (payload.type === 'input_audio_buffer.speech_started') {
             omniAudioCtxRef.current?.close();
