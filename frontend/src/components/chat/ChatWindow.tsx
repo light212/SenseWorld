@@ -47,6 +47,9 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const omniClientRef = useRef<OmniClient | null>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
+  // Omni PCM 音频串行播放器
+  const omniAudioCtxRef = useRef<AudioContext | null>(null);
+  const omniNextStartTimeRef = useRef<number>(0);
   const audioQueueRef = useRef<string[]>([]);
   const audioChunksForSaveRef = useRef<string[]>([]); // 用于保存到缓存的音频
   const isPlayingRef = useRef(false);
@@ -368,6 +371,9 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       // 挂断
       omniClientRef.current?.disconnect();
       omniClientRef.current = null;
+      omniAudioCtxRef.current?.close();
+      omniAudioCtxRef.current = null;
+      omniNextStartTimeRef.current = 0;
       setIsVideoCallActive(false);
       setIsAiSpeaking(false);
       return;
@@ -388,12 +394,31 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         }
         if (event.type === 'omni_closed' || event.type === 'omni_error') {
           omniClientRef.current?.stopCamera();
+          omniAudioCtxRef.current?.close();
+          omniAudioCtxRef.current = null;
+          omniNextStartTimeRef.current = 0;
           setIsVideoCallActive(false);
           setIsAiSpeaking(false);
         }
       },
       onAudio: (audioData) => {
-        playAudio(audioData).catch(console.error);
+        // 串行调度 PCM delta，避免叠音
+        if (!omniAudioCtxRef.current || omniAudioCtxRef.current.state === 'closed') {
+          omniAudioCtxRef.current = new AudioContext({ sampleRate: 24000 });
+          omniNextStartTimeRef.current = 0;
+        }
+        const ctx = omniAudioCtxRef.current;
+        const int16 = new Int16Array(audioData);
+        const float32 = new Float32Array(int16.length);
+        for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+        const buffer = ctx.createBuffer(1, float32.length, 24000);
+        buffer.copyToChannel(float32, 0);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        const startAt = Math.max(ctx.currentTime, omniNextStartTimeRef.current);
+        source.start(startAt);
+        omniNextStartTimeRef.current = startAt + buffer.duration;
       },
       onError: () => {
         toast.error('视频通话连接失败');
