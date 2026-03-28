@@ -17,19 +17,21 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   isUser = false,
   audioUrl: propsAudioUrl,
 }: VoiceMessageBubbleProps) {
-  // Debug
-  console.log('[VoiceMessageBubble] props:', {
-    messageId: messageId?.slice(0, 8),
-    isUser,
-    propDuration,
-    hasPropsUrl: !!propsAudioUrl,
-    propsAudioUrl: propsAudioUrl?.slice(0, 30)
-  });
-  
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(propsAudioUrl || null);
   const [duration, setDuration] = useState(propDuration);
+  
+  // Debug
+  const finalAudioUrl = audioUrl || propsAudioUrl;
+  console.log('[VoiceMessageBubble] render:', {
+    messageId: messageId?.slice(0, 8),
+    isUser,
+    propDuration,
+    propsAudioUrl: propsAudioUrl?.slice(0, 30),
+    audioUrl: audioUrl?.slice(0, 30),
+    finalAudioUrl: finalAudioUrl?.slice(0, 30)
+  });
 
   // 声波高度模式
   const staticHeights = [4, 8, 12, 6, 16, 10, 8, 14, 6, 12, 16, 8, 4, 10, 14];
