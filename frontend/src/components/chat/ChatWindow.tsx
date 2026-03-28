@@ -5,13 +5,16 @@
  * 支持流式 LLM 响应 + 分段 TTS
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Bot, PhoneOff } from "lucide-react";
 import { MessageList } from "./MessageList";
 import { CompactInputBar } from "./CompactInputBar";
 import { useConversationStore } from "@/stores/conversationStore";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { saveAudio, cleanupOldAudio } from "@/lib/audio-cache";
+import { OmniClient } from "@/lib/omni-client";
+import { useToast } from "@/components/ui/Toast";
 import type { Message } from "@/types";
 
 interface ChatWindowProps {
@@ -36,7 +39,14 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const setIsStreaming = useConversationStore((s) => s.setIsStreaming);
 
   const token = useAuthStore((s) => s.token);
+  const toast = useToast();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // 视频通话状态
+  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const omniClientRef = useRef<OmniClient | null>(null);
+  const videoElementRef = useRef<HTMLVideoElement>(null);
   const audioQueueRef = useRef<string[]>([]);
   const audioChunksForSaveRef = useRef<string[]>([]); // 用于保存到缓存的音频
   const isPlayingRef = useRef(false);
@@ -353,8 +363,110 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     [activeConversationId, addMessage, setIsSendingMessage, streamChat]
   );
 
+  const handleVideoCallToggle = useCallback(async () => {
+    if (isVideoCallActive) {
+      // 挂断
+      omniClientRef.current?.disconnect();
+      omniClientRef.current = null;
+      setIsVideoCallActive(false);
+      setIsAiSpeaking(false);
+      return;
+    }
+
+    // 开始视频通话
+    if (!token) return;
+    const wsUrl = `ws://${window.location.hostname}:8000/ws/omni`;
+    const client = new OmniClient({
+      wsUrl,
+      token,
+      onEvent: (event) => {
+        if (event.type === 'omni_event') {
+          const payload = event.payload as Record<string, unknown>;
+          // AI 开始/停止说话检测
+          if (payload.type === 'response.audio.delta') setIsAiSpeaking(true);
+          if (payload.type === 'response.audio.done' || payload.type === 'response.done') setIsAiSpeaking(false);
+        }
+        if (event.type === 'omni_closed' || event.type === 'omni_error') {
+          omniClientRef.current?.stopCamera();
+          setIsVideoCallActive(false);
+          setIsAiSpeaking(false);
+        }
+      },
+      onError: () => {
+        toast.error('视频通话连接失败');
+        setIsVideoCallActive(false);
+      },
+      onClose: () => {
+        setIsVideoCallActive(false);
+        setIsAiSpeaking(false);
+      },
+    });
+
+    try {
+      await client.connect();
+      await client.startRecording();
+      if (videoElementRef.current) {
+        await client.startCamera(videoElementRef.current);
+      }
+      omniClientRef.current = client;
+      setIsVideoCallActive(true);
+    } catch (err) {
+      client.disconnect();
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('Permission') || msg.includes('NotAllowed') || msg.includes('NotFound')) {
+        toast.error('需要摄像头和麦克风权限才能使用视频通话');
+      } else {
+        toast.error('视频通话启动失败，请重试');
+      }
+    }
+  }, [isVideoCallActive, token, toast]);
+
+  // 切换 conversation 时自动挂断
+  useEffect(() => {
+    if (!isVideoCallActive) return;
+    omniClientRef.current?.disconnect();
+    omniClientRef.current = null;
+    setIsVideoCallActive(false);
+    setIsAiSpeaking(false);
+  }, [currentConversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className={cn("flex flex-col h-full", className)}>
+      {/* 视频通话面板 */}
+      {isVideoCallActive && (
+        <div className="flex items-center gap-4 p-3 bg-gray-900 border-b border-gray-700">
+          <video
+            ref={videoElementRef}
+            autoPlay
+            muted
+            playsInline
+            className="w-40 h-30 rounded-lg object-cover bg-gray-800"
+          />
+          <div className="flex flex-col items-center gap-2">
+            <div className={cn(
+              "w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center",
+              isAiSpeaking && "animate-pulse"
+            )}>
+              <Bot className="w-8 h-8 text-white" />
+            </div>
+            {isAiSpeaking && (
+              <div className="flex gap-1">
+                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleVideoCallToggle}
+            className="ml-auto p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors"
+            title="挂断"
+          >
+            <PhoneOff className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {/* Messages area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 bg-gray-50">
         <MessageList
@@ -370,6 +482,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       <CompactInputBar
         onTextSend={handleTextSend}
         onVoiceRecord={handleVoiceRecordingComplete}
+        onVideoCallToggle={handleVideoCallToggle}
+        isVideoCallActive={isVideoCallActive}
         disabled={isSendingMessage || isStreaming}
       />
     </div>
