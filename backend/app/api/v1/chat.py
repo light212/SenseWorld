@@ -190,7 +190,7 @@ async def send_message_stream(
     )
     db.add(user_message)
     await db.commit()
-    logger.info(f"Saved user message ({data.input_type}) id={user_message.id} to conversation {data.conversation_id}")
+    logger.info(f"Saved user message ({data.input_type}) id={user_message.id[:8]}")
 
     # Get recent messages for context
     msg_result = await db.execute(
@@ -229,9 +229,7 @@ async def send_message_stream(
         async def synthesize_and_send(text: str):
             """异步合成 TTS 并返回结果"""
             try:
-                logger.info(f"TTS: synthesizing: {text[:30]}...")
                 audio_data = await tts_service.synthesize(text)
-                logger.info(f"TTS: got audio, length: {len(audio_data)}")
                 import base64
                 audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                 return f"event: audio\ndata: {json.dumps({'audio_base64': audio_base64, 'text': text}, ensure_ascii=False)}\n\n"
@@ -274,7 +272,7 @@ async def send_message_stream(
                         yield result
 
             # 使用独立的 session 保存 AI 消息（原 session 已在 StreamingResponse 返回后关闭）
-            logger.info(f"Attempting to save AI message, full_response length: {len(full_response)}")
+            # 保存 AI 消息
             if not full_response.strip():
                 logger.warning("LLM returned empty response, skipping save")
                 return
@@ -330,7 +328,7 @@ async def send_message_stream(
                         ))
 
                     await save_db.commit()
-                    logger.info(f"Saved AI message {message_id} to conversation {conversation_id}")
+                    logger.info(f"Saved AI msg {message_id[:8]}")
             except Exception as save_error:
                 logger.error(f"Failed to save AI message: {save_error}", exc_info=True)
 
