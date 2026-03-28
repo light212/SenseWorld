@@ -284,7 +284,7 @@ async def send_message_stream(
                         role="assistant",
                         content=full_response,
                         has_audio=is_voice_input,
-                        extra_data={},
+                        extra_data={"input_type": data.input_type},
                     )
                     save_db.add(ai_message)
 
