@@ -9,13 +9,47 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { VideoCallModal } from "./VideoCallModal";
 import { MessageList } from "./MessageList";
 import { CompactInputBar } from "./CompactInputBar";
-import { useConversationStore } from "@/stores/conversationStore";
-import { useAuthStore } from "@/stores/authStore";
+import { useConversationStore, useConversationHydration } from "@/stores/conversationStore";
+import { useAuthStore, useAuthHydration } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
-import { saveAudio, cleanupOldAudio } from "@/lib/audio-cache";
+import { saveAudio, cleanupOldAudio, createAudioUrl } from "@/lib/audio-cache";
+import { audioManager } from "@/lib/optimized-audio-manager";
 import { OmniClient, playAudio } from "@/lib/omni-client";
+import { audioEngine } from "@/lib/audio-engine";
+import { memoryMonitor } from "@/lib/memory-monitor";
+import { performanceMonitor } from "@/lib/performance-monitor";
+import { errorTracker, logError, logWarning } from "@/lib/error-tracking";
 import { useToast } from "@/components/ui/Toast";
 import type { Message } from "@/types";
+
+/**
+ * 创建WAV文件头部
+ */
+function createWavHeader(dataLength: number, sampleRate: number = 22050): Uint8Array {
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+
+  // RIFF标识
+  view.setUint32(0, 0x46464952, true); // "RIFF"
+  view.setUint32(4, 36 + dataLength, true); // 文件总大小
+  view.setUint32(8, 0x45564157, true); // "WAVE"
+
+  // fmt子块
+  view.setUint32(12, 0x20746d66, true); // "fmt "
+  view.setUint32(16, 16, true); // fmt块大小
+  view.setUint16(20, 1, true); // PCM格式
+  view.setUint16(22, 1, true); // 单声道
+  view.setUint32(24, sampleRate, true); // 采样率
+  view.setUint32(28, sampleRate * 2, true); // 字节率
+  view.setUint16(32, 2, true); // 块对齐
+  view.setUint16(34, 16, true); // 位深度
+
+  // data子块
+  view.setUint32(36, 0x61746164, true); // "data"
+  view.setUint32(40, dataLength, true); // 数据大小
+
+  return new Uint8Array(header);
+}
 
 interface ChatWindowProps {
   conversationId?: string;
@@ -37,8 +71,16 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const updateStreamingContent = useConversationStore((s) => s.updateStreamingContent);
   const clearStreamingContent = useConversationStore((s) => s.clearStreamingContent);
   const setIsStreaming = useConversationStore((s) => s.setIsStreaming);
+  const setStreamingInputType = useConversationStore((s) => s.setStreamingInputType);
+  const updateMessage = useConversationStore((s) => s.updateMessage);
 
   const token = useAuthStore((s) => s.token);
+  const authHydrated = useAuthHydration();
+  const convHydrated = useConversationHydration();
+  const authHydratedRef = useRef(authHydrated);
+  authHydratedRef.current = authHydrated;
+  const convHydratedRef = useRef(convHydrated);
+  convHydratedRef.current = convHydrated;
   const toast = useToast();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -63,64 +105,84 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null); // Bug 1: 跟踪当前音频
   const messagesCacheRef = useRef<Map<string, Message[]>>(new Map()); // 会话消息缓存
   const loadAbortRef = useRef<AbortController | null>(null); // 取消上一个消息加载请求
+  const streamAbortRef = useRef<AbortController | null>(null); // 取消进行中的流式请求
+  const tokenRef = useRef(token);
+  tokenRef.current = token; // 每次渲染同步最新值，无需 effect
 
   // 使用传入的 conversationId 或 store 中的
   const activeConversationId = conversationId || currentConversationId;
 
-  // 启动时清理过期音频
+  const activeConversationIdRef = useRef(activeConversationId);
+  activeConversationIdRef.current = activeConversationId;
+
+  // 启动时初始化所有系统
   useEffect(() => {
     cleanupOldAudio().catch(console.error);
+
+    // 初始化错误追踪
+    errorTracker.initialize();
+
+    // 启动性能监控
+    performanceMonitor.startMonitoring();
+
+    // 启动内存监控
+    memoryMonitor.startMonitoring();
+
+    // 初始化专业音频引擎
+    audioEngine.initialize().catch(error => {
+      logError('专业音频引擎初始化失败', 'audio', 'high', { error: error.message }, error);
+    });
+
+
+    // 设置性能告警回调
+    performanceMonitor.onAlert((alert) => {
+      logWarning(`性能告警 [${alert.severity}]: ${alert.message}`, 'unknown', {
+        metric: alert.metric,
+        value: alert.value,
+        threshold: alert.threshold
+      });
+    });
+
+    // 组件卸载时清理所有资源
+    return () => {
+      audioEngine.destroy().catch(error => {
+        logError('音频引擎销毁失败', 'audio', 'medium', { error: error.message }, error);
+      });
+      memoryMonitor.stopMonitoring();
+      performanceMonitor.stopMonitoring();
+      errorTracker.destroy();
+    };
   }, []);
 
-  // Bug 1: 停止当前播放的音频
-  const stopCurrentAudio = useCallback(() => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-    }
-    isPlayingRef.current = false;
-    audioQueueRef.current = [];
-  }, []);
-
-  // 播放音频队列
+  // 使用专业音频引擎播放音频
   const playNextAudio = useCallback(async () => {
     if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
-    
+
     isPlayingRef.current = true;
     const audioBase64 = audioQueueRef.current.shift();
-    
+
     if (audioBase64) {
       try {
+        // 使用专业音频引擎解码和播放
         const audioData = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
-        const blob = new Blob([audioData], { type: "audio/wav" });
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        
-        // Bug 1: 保存当前音频引用
-        currentAudioRef.current = audio;
-        
-        audio.onended = () => {
-          URL.revokeObjectURL(url);
-          currentAudioRef.current = null;
-          isPlayingRef.current = false;
-          playNextAudio();
-        };
-        
-        audio.onerror = () => {
-          URL.revokeObjectURL(url);
-          currentAudioRef.current = null;
-          isPlayingRef.current = false;
-          playNextAudio();
-        };
-        
-        await audio.play();
+        await audioEngine.playAudio(audioData.buffer);
+
+        // 继续播放下一个音频
+        isPlayingRef.current = false;
+        setTimeout(() => playNextAudio(), 100); // 小延迟确保平滑过渡
       } catch (error) {
-        console.error("Audio playback error:", error);
-        currentAudioRef.current = null;
+        console.error("专业音频引擎播放失败:", error);
         isPlayingRef.current = false;
         playNextAudio();
       }
     }
+  }, []);
+
+  // 停止音频播放
+  const stopCurrentAudio = useCallback(() => {
+    audioEngine.stop();
+    isPlayingRef.current = false;
+    audioQueueRef.current = [];
   }, []);
 
   // Bug 1: 切换会话时停止音频
@@ -132,15 +194,13 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
   // 加载历史消息 - 当会话变化时重新加载（带缓存优化）
   useEffect(() => {
-    if (!token || !activeConversationId) return;
-    
-    // Bug 1: 停止当前音频
-    stopCurrentAudio();
+    if (!activeConversationId) return;
 
-    // 取消上一个未完成的请求
+    // 取消上一个未完成的请求，立即创建新的 controller
     loadAbortRef.current?.abort();
-    loadAbortRef.current = new AbortController();
-    const abortSignal = loadAbortRef.current.signal;
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const abortSignal = controller.signal;
 
     // 如有缓存直接用，否则清空并显示骨架屏
     const cached = messagesCacheRef.current.get(activeConversationId);
@@ -156,7 +216,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       try {
         const response = await fetch(
           `http://localhost:8000/v1/conversations/${activeConversationId}/messages`,
-          { headers: { Authorization: `Bearer ${token}` }, signal: abortSignal }
+          { headers: { Authorization: `Bearer ${tokenRef.current}` }, signal: abortSignal }
         );
         if (response.ok) {
           const data = await response.json();
@@ -193,19 +253,38 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       }
     };
     loadMessages();
-  }, [activeConversationId, token, setMessages, stopCurrentAudio, setIsLoadingMessages]);
+  }, [activeConversationId, setMessages, stopCurrentAudio, setIsLoadingMessages]);
 
   // 流式聊天请求
   const streamChat = useCallback(async (text: string, inputType: "text" | "voice" = "text", messageId?: string, audioDuration?: number) => {
-    if (!activeConversationId || !token) {
+    const currentToken = tokenRef.current;
+    const currentConvId = activeConversationIdRef.current;
+    if (!currentConvId || !currentToken) {
       return;
     }
 
-    // 清空流式内容，开始流式状态
+    // 取消上一个进行中的流式请求
+    streamAbortRef.current?.abort();
+    const abortController = new AbortController();
+    streamAbortRef.current = abortController;
+
+    // 提前生成 AI 消息 ID，立即插入占位消息
+    const finalMessageId = crypto.randomUUID();
+    const placeholderMessage: Message = {
+      id: finalMessageId,
+      conversationId: currentConvId,
+      role: "assistant",
+      content: "",
+      createdAt: new Date().toISOString(),
+      hasAudio: false,
+      metadata: { inputType },
+    };
+    addMessage(placeholderMessage);
+
+    // 设置流式状态
     clearStreamingContent();
+    setStreamingInputType(inputType);
     setIsStreaming(true);
-    // 确保状态同步（React 18 会批处理，这里强制触发）
-    await new Promise(resolve => setTimeout(resolve, 0));
     audioQueueRef.current = [];
 
     let fullContent = "";
@@ -214,12 +293,13 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     try {
       const response = await fetch("http://localhost:8000/v1/chat/stream", {
         method: "POST",
+        signal: abortController.signal,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
-          conversation_id: activeConversationId,
+          conversation_id: currentConvId,
           content: text,
           input_type: inputType,
           message_id: messageId,
@@ -236,6 +316,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let hasReceivedFirstAudio = false; // 跟踪是否收到第一个音频
 
       while (true) {
         const { done, value } = await reader.read();
@@ -250,101 +331,127 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           if (line.startsWith("event: ")) {
             continue;
           }
-          
+
           if (line.startsWith("data: ")) {
             const dataStr = line.slice(6).trim();
             try {
               const data = JSON.parse(dataStr);
-              
+
               if (data.content) {
                 fullContent += data.content;
-                updateStreamingContent(data.content);
+                // 文字模式实时更新占位消息内容；语音模式不显示流式文字，避免闪烁
+                if (inputType === "text") {
+                  updateMessage(finalMessageId, { content: fullContent });
+                }
+                // 语音模式下，只有当收到第一个音频时才更新消息内容，避免文字闪烁
+                if (inputType === "voice" && hasReceivedFirstAudio) {
+                  updateMessage(finalMessageId, { content: fullContent });
+                }
               }
-              
+
               if (data.audio_base64) {
                 console.log("[Audio] received audio chunk, length:", data.audio_base64.length);
                 audioQueueRef.current.push(data.audio_base64);
-                audioChunksForSaveRef.current.push(data.audio_base64); // 保存用于缓存
-                playNextAudio();
+                audioChunksForSaveRef.current.push(data.audio_base64);
+                if (!hasReceivedFirstAudio) {
+                  hasReceivedFirstAudio = true;
+                  updateMessage(finalMessageId, {
+                    content: fullContent,
+                    metadata: { inputType: "voice" }
+                  });
+                }
+                // 使用专业音频引擎播放
+                if (!isPlayingRef.current) {
+                  playNextAudio();
+                }
               }
-              
+
+
               if (data.message_id) {
                 aiMessageId = data.message_id;
               }
             } catch (e) {
-              // 忽略解析错误
-              console.warn("[SSE] parse error:", e);
+              logWarning('SSE消息解析失败', 'network', {
+                error: (e as Error).message,
+                dataLength: dataStr.length
+              });
             }
           }
         }
       }
 
-      // 添加完整的 AI 消息
-      if (fullContent) {
-        const finalMessageId = aiMessageId || crypto.randomUUID();
-        
-        // 保存音频到本地缓存
-        if (audioChunksForSaveRef.current.length > 0) {
-          saveAudio(finalMessageId, audioChunksForSaveRef.current).catch(console.error);
-          audioChunksForSaveRef.current = []; // 清空
-        }
-        
-        const aiMessage: Message = {
-          id: finalMessageId,
-          conversationId: activeConversationId,
-          role: "assistant",
-          content: fullContent,
-          createdAt: new Date().toISOString(),
-          hasAudio: audioChunksForSaveRef.current.length > 0 || true, // 有音频标记
-        };
-        addMessage(aiMessage);
+      // 用后端返回的 message_id 更新占位消息（如果后端有返回）
+      if (aiMessageId && aiMessageId !== finalMessageId) {
+        // 后端有自己的 ID，但我们已用前端生成的 ID 插入了占位，保持前端 ID 不变
       }
+
+      // 保存音频到本地缓存（异步，不阻塞 UI）
+      const hasAudioChunks = audioChunksForSaveRef.current.length > 0;
+      let inMemoryAudioUrl: string | undefined;
+      if (hasAudioChunks) {
+        inMemoryAudioUrl = createAudioUrl(audioChunksForSaveRef.current);
+        saveAudio(finalMessageId, audioChunksForSaveRef.current).catch(console.error);
+        audioChunksForSaveRef.current = [];
+      }
+
+      // 更新占位消息为完整内容
+      updateMessage(finalMessageId, {
+        content: fullContent,
+        hasAudio: hasAudioChunks,
+        audioUrl: inMemoryAudioUrl,
+      });
 
     } catch (error) {
-      console.error("Stream chat failed:", error);
+      if ((error as Error).name !== "AbortError") {
+        logError('流式聊天失败', 'network', 'high', {
+          error: (error as Error).message,
+          conversationId: currentConvId,
+          inputType
+        }, error as Error);
+      }
     } finally {
-      setIsStreaming(false);
-      clearStreamingContent();
-      setIsSendingMessage(false);
-    }
-  }, [activeConversationId, token, updateStreamingContent, clearStreamingContent, setIsStreaming, addMessage, setIsSendingMessage, playNextAudio]);
-
-  const handleVoiceRecordingComplete = useCallback(
-    async (blob: Blob, duration: number, confirmedText: string) => {
-      if (!activeConversationId) return;
-      
-      setIsSendingMessage(true);
-
-      try {
-        const messageId = crypto.randomUUID();
-        
-        // 保存用户语音到 IndexedDB
-        const { saveUserAudioBlob } = await import("@/lib/audio-cache");
-        await saveUserAudioBlob(messageId, blob);
-
-        const userMessage: Message = {
-          id: messageId,
-          conversationId: activeConversationId,
-          role: "user",
-          content: confirmedText,
-          createdAt: new Date().toISOString(),
-          hasAudio: true,
-          audioDuration: duration,
-          metadata: { 
-            inputType: "voice",
-          },
-        };
-        addMessage(userMessage);
-
-        // 流式调用 chat API（语音输入，带 messageId 和 duration 保证一致）
-        await streamChat(confirmedText, "voice", messageId, duration);
-
-      } catch (error) {
-        console.error("Failed to process voice message:", error);
+      if (!abortController.signal.aborted) {
+        setIsStreaming(false);
+        clearStreamingContent();
         setIsSendingMessage(false);
       }
+    }
+  }, [updateStreamingContent, clearStreamingContent, setIsStreaming, addMessage, setIsSendingMessage, playNextAudio]);
+
+  const handleVoiceRecordingComplete = useCallback(
+    (blob: Blob, duration: number, confirmedText: string) => {
+      if (!activeConversationId) return;
+
+      const messageId = crypto.randomUUID();
+
+      // 立即创建并显示用户语音消息
+      const audioUrl = URL.createObjectURL(blob);
+      memoryMonitor.registerObjectURL(audioUrl);
+
+      const userMessage: Message = {
+        id: messageId,
+        conversationId: activeConversationId,
+        role: "user",
+        content: confirmedText || "语音消息",
+        createdAt: new Date().toISOString(),
+        hasAudio: true,
+        audioDuration: duration,
+        audioUrl,
+        metadata: {
+          inputType: "voice",
+        },
+      };
+      addMessage(userMessage);
+
+      // 后台异步保存用户语音
+      import("@/lib/audio-cache").then(({ saveUserAudioBlob }) =>
+        saveUserAudioBlob(messageId, blob).catch(console.error)
+      );
+
+      // 不 await，让 streamChat 在后台执行
+      streamChat(confirmedText, "voice", messageId, duration).catch(console.error);
     },
-    [activeConversationId, addMessage, setIsSendingMessage, streamChat]
+    [activeConversationId, addMessage, streamChat]
   );
 
   const handleTextSend = useCallback(
@@ -410,7 +517,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           }
           // AI 调用 end_call 工具：自动挂断
           if (payload.type === 'response.function_call_arguments.done' && payload.name === 'end_call') {
-            setTimeout(() => handleVideoCallToggle(), 1500); // 延迟让 AI 说完再见
+            setTimeout(() => handleVideoCallToggleRef.current?.(), 1500); // 延迟让 AI 说完再见
           }
           // 用户开始说话：立即打断 AI 播放
           if (payload.type === 'input_audio_buffer.speech_started') {

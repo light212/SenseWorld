@@ -62,7 +62,14 @@
       "Bash(.venv/bin/python -c \"\nimport asyncio, base64\nfrom openai import OpenAI\nfrom app.config import settings\n\nclient = OpenAI\\(\n    api_key=settings.tts_api_key,\n    base_url='https://dashscope.aliyuncs.com/compatible-mode/v1',\n\\)\n\nwith open\\('/tmp/test_tts.wav', 'rb'\\) as f:\n    audio_b64 = base64.b64encode\\(f.read\\(\\)\\).decode\\(\\)\n\ncompletion = client.chat.completions.create\\(\n    model='qwen3-asr-flash',\n    messages=[{'role': 'user', 'content': [{'type': 'input_audio', 'input_audio': {'data': f'data:audio/wav;base64,{audio_b64}'}}]}],\n    extra_body={'asr_options': {'language': 'zh', 'enable_itn': False}},\n\\)\nusage = completion.usage\nprint\\('usage type:', type\\(usage\\)\\)\nprint\\('usage:', usage\\)\nprint\\('model_extra:', usage.model_extra if hasattr\\(usage, 'model_extra'\\) else 'N/A'\\)\nprint\\('seconds attr:', getattr\\(usage, 'seconds', 'NOT FOUND'\\)\\)\n\")",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(python3:*)",
+      "Bash(bash .specify/scripts/bash/create-new-feature.sh --short-name 'ui-ux-redesign' 'Product-grade UI/UX redesign for chat and video call interfaces' --json 2>&1)",
+      "Bash(git:*)",
+      "Bash(wait)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(find /Users/tangxuguang/project/git/SenseWorld -path \"*/.venv\" -prune -o -name \"*.py\" -type f -exec grep -l \"stream\\\\|audio\" {})",
+      "Bash(python -m uvicorn app.main:app --reload)"
     ]
   }
 }

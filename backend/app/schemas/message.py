@@ -40,12 +40,13 @@ class SendMessageRequest(BaseModel):
     content: str = Field(min_length=1, max_length=10000)
 
 
-class MessageResponse(MessageBase):
+class MessageResponse(BaseModel):
     """Message response schema."""
 
     id: str
     conversation_id: str
     role: MessageRole
+    content: str
     created_at: datetime
     has_audio: bool = False
     audio_duration: Optional[int] = None

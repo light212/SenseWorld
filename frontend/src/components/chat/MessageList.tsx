@@ -110,14 +110,11 @@ export function MessageList({
                 <p className="whitespace-pre-wrap text-gray-800 text-[15px] leading-relaxed">{streamingContent}</p>
               </div>
             ) : (
-              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
-                  </div>
-                  <span className="text-sm text-gray-400">正在思考</span>
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm inline-flex">
+                <div className="flex items-center gap-[5px]">
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
             )}
@@ -162,6 +159,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
           <VoiceMessageBubble
             messageId={message.id}
             duration={message.audioDuration || 0}
+            audioUrl={message.audioUrl}
             isUser={isUser}
           />
         ) : (
@@ -174,13 +172,11 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
             )}
           >
             <p className="whitespace-pre-wrap text-[15px] leading-relaxed break-words">{message.content}</p>
-
             {/* AI 语音播放器 */}
             {message.hasAudio && !isUser && (
-              <AudioPlayer 
-                messageId={message.id} 
-                fallbackSrc={`http://localhost:8000/v1/audio/${message.id}`}
-                className="mt-2" 
+              <AudioPlayer
+                messageId={message.id}
+                className="mt-2"
               />
             )}
           </div>

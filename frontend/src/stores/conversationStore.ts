@@ -24,6 +24,7 @@ interface ConversationState {
   // Streaming state
   streamingContent: string;
   isStreaming: boolean;
+  streamingInputType: "text" | "voice";
   
   // Hydration state
   _hasHydrated: boolean;
@@ -38,6 +39,8 @@ interface ConversationState {
   updateStreamingContent: (content: string) => void;
   clearStreamingContent: () => void;
   setIsStreaming: (isStreaming: boolean) => void;
+  setStreamingInputType: (inputType: "text" | "voice") => void;
+  updateMessage: (id: string, updates: Partial<Message>) => void;
   setIsSendingMessage: (isSending: boolean) => void;
   setHasHydrated: (state: boolean) => void;
   setIsLoadingConversations: (loading: boolean) => void;
@@ -56,6 +59,7 @@ export const useConversationStore = create<ConversationState>()(
       isSendingMessage: false,
       streamingContent: "",
       isStreaming: false,
+      streamingInputType: "text",
       _hasHydrated: false,
 
       // Actions
@@ -86,6 +90,11 @@ export const useConversationStore = create<ConversationState>()(
       clearStreamingContent: () => set({ streamingContent: "" }),
       
       setIsStreaming: (isStreaming) => set({ isStreaming }),
+      setStreamingInputType: (inputType) => set({ streamingInputType: inputType }),
+      updateMessage: (id, updates) =>
+        set((state) => ({
+          messages: state.messages.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+        })),
       
       setIsSendingMessage: (isSending) => set({ isSendingMessage: isSending }),
       

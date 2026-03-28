@@ -10,7 +10,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { Mic, Send, Video, Keyboard, X, RotateCcw, MicOff, Check } from "lucide-react";
+import { Mic, Send, Video, Keyboard, X, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 
@@ -39,19 +39,12 @@ export function CompactInputBar({
   const [inputMode, setInputMode] = useState<'text' | 'voice'>('text');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  
+  const [, setVoicePreview] = useState<Blob | null>(null);
+
   // P1-1: 麦克风权限状态
   const [micPermission, setMicPermission] = useState<MicPermissionState>("unknown");
   const [showMicGuide, setShowMicGuide] = useState(false);
   
-  // P1-2/P1-3: 语音预览状态
-  const [voicePreview, setVoicePreview] = useState<{
-    blob: Blob;
-    duration: number;
-    audioUrl: string;
-    transcription: string;
-    isTranscribing: boolean;
-  } | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -103,11 +96,8 @@ export function CompactInputBar({
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      if (voicePreview?.audioUrl) {
-        URL.revokeObjectURL(voicePreview.audioUrl);
-      }
     };
-  }, [voicePreview?.audioUrl]);
+  }, []);
 
   // 开始录音（带权限处理）
   const startRecording = useCallback(async () => {
@@ -164,66 +154,22 @@ export function CompactInputBar({
     }
   }, [toast]);
 
-  // P1-3: 停止录音并显示预览
-  const stopRecordingAndPreview = useCallback(async () => {
+  // 停止录音并直接发送
+  const stopRecordingAndSend = useCallback(() => {
     if (!mediaRecorderRef.current) return;
 
     const recorder = mediaRecorderRef.current;
     const duration = Date.now() - startTimeRef.current;
-    
+
+    recorder.onstop = () => {
+      if (chunksRef.current.length === 0) return;
+      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      chunksRef.current = [];
+      onVoiceRecord(blob, duration, "");
+    };
+
     recorder.stop();
     recorder.stream.getTracks().forEach(t => t.stop());
-
-    recorder.onstop = async () => {
-      if (chunksRef.current.length > 0) {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const audioUrl = URL.createObjectURL(blob);
-        
-        // 显示预览
-        setVoicePreview({
-          blob,
-          duration,
-          audioUrl,
-          transcription: "",
-          isTranscribing: true,
-        });
-        
-        // 自动进行 ASR
-        try {
-          const formData = new FormData();
-          formData.append("audio", blob, "recording.webm");
-          formData.append("language", "zh");
-
-          const token = useAuthStore.getState().token;
-          const response = await fetch("http://localhost:8000/v1/speech/transcribe", {
-            method: "POST",
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body: formData,
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            setVoicePreview(prev => prev ? {
-              ...prev,
-              transcription: result.text || "",
-              isTranscribing: false,
-            } : null);
-          } else {
-            setVoicePreview(prev => prev ? {
-              ...prev,
-              isTranscribing: false,
-            } : null);
-          }
-        } catch (error) {
-          console.error("ASR failed:", error);
-          setVoicePreview(prev => prev ? {
-            ...prev,
-            isTranscribing: false,
-          } : null);
-        }
-      }
-      chunksRef.current = [];
-    };
 
     setIsRecording(false);
     setRecordingDuration(0);
@@ -231,7 +177,7 @@ export function CompactInputBar({
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  }, []);
+  }, [onVoiceRecord]);
 
   // 取消录音
   const cancelRecording = useCallback(() => {
@@ -248,38 +194,7 @@ export function CompactInputBar({
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    setVoicePreview(null);
   }, []);
-
-  // P1-3: 重录
-  const handleRerecord = useCallback(() => {
-    if (voicePreview?.audioUrl) {
-      URL.revokeObjectURL(voicePreview.audioUrl);
-    }
-    setVoicePreview(null);
-    startRecording();
-  }, [voicePreview, startRecording]);
-
-  // P1-2/P1-3: 发送语音（带可编辑文字）
-  const sendVoicePreview = useCallback(() => {
-    if (!voicePreview) return;
-    
-    // 如果有编辑过的文字，使用编辑过的；否则使用 transcription
-    const finalText = text.trim() || voicePreview.transcription;
-    
-    if (!finalText) {
-      toast.warning("请输入或确认文字内容");
-      return;
-    }
-    
-    // 调用父组件，传递 blob、duration 和确认的文字
-    onVoiceRecord(voicePreview.blob, voicePreview.duration, finalText);
-    
-    // 清理预览
-    URL.revokeObjectURL(voicePreview.audioUrl);
-    setVoicePreview(null);
-    setText("");
-  }, [voicePreview, text, onVoiceRecord]);
 
   // 发送文字
   const handleSend = () => {
@@ -301,11 +216,7 @@ export function CompactInputBar({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (voicePreview) {
-        sendVoicePreview();
-      } else {
-        handleSend();
-      }
+      handleSend();
     }
   };
 
@@ -485,69 +396,6 @@ export function CompactInputBar({
     );
   }
 
-  // P1-2/P1-3: 语音预览状态（录音完成后的预览）
-  if (voicePreview && !isRecording) {
-    return (
-      <div className="px-4 py-3 border-t border-gray-200 bg-white">
-        {/* 音频预览 */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-red-800 flex items-center justify-center text-white">
-            <Mic className="w-5 h-5" />
-          </div>
-          
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {formatDuration(Math.floor(voicePreview.duration / 1000))}
-              </span>
-              {voicePreview.isTranscribing && (
-                <span className="text-xs text-gray-400">识别中...</span>
-              )}
-            </div>
-            
-            {/* 音频播放 */}
-            <audio 
-              src={voicePreview.audioUrl} 
-              controls 
-              className="h-8 w-full"
-            />
-          </div>
-        </div>
-        
-        {/* P1-2: 可编辑的识别文字 */}
-        <input
-          type="text"
-          value={voicePreview.isTranscribing ? "识别中..." : (text || voicePreview.transcription)}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={voicePreview.transcription || "等待识别结果..."}
-          disabled={voicePreview.isTranscribing}
-          className="w-full px-4 py-2 bg-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 mb-3"
-        />
-        
-        {/* P1-3: 操作按钮 */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleRerecord}
-            className="flex-1 py-2 px-4 border border-gray-300 rounded-full text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1"
-          >
-            <RotateCcw className="w-4 h-4" />
-            重录
-          </button>
-          
-          <button
-            onClick={sendVoicePreview}
-            disabled={voicePreview.isTranscribing || disabled}
-            className="flex-1 py-2 px-4 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-1"
-          >
-            <Send className="w-4 h-4" />
-            发送
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // 录音中状态
   if (isRecording) {
     return (
@@ -569,7 +417,7 @@ export function CompactInputBar({
         </div>
         
         <button
-          onClick={stopRecordingAndPreview}
+          onClick={stopRecordingAndSend}
           className="px-4 py-1.5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
         >
           完成

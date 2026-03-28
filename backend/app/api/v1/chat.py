@@ -231,29 +231,60 @@ async def send_message_stream(
                 # 发送文本片段
                 yield f"event: text\ndata: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
 
-                # 检查是否有完整句子（以句号、问号、感叹号结尾）
-                # 分段合成 TTS
+                # 优化的流式 TTS：平衡响应速度和音频质量
                 sentence_enders = ['。', '？', '！', '；', '.', '?', '!', ';']
+                pause_enders = ['，', ',', '、']  # 逗号类，优先级较低
+                should_synthesize = False
+                sentence_to_synthesize = ""
+
+                # 优先查找句子结束符
                 for ender in sentence_enders:
                     if ender in sentence_buffer:
-                        # 找到句子结束位置
                         idx = sentence_buffer.index(ender) + 1
-                        sentence = sentence_buffer[:idx]
+                        sentence_to_synthesize = sentence_buffer[:idx]
                         sentence_buffer = sentence_buffer[idx:]
-
-                        # 合成音频
-                        try:
-                            logger.info(f"TTS: synthesizing sentence: {sentence[:30]}...")
-                            audio_data = await tts_service.synthesize(sentence)
-                            _tts_chars[0] += len(sentence)
-                            logger.info(f"TTS: got audio data, length: {len(audio_data)}")
-                            import base64
-                            audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-                            yield f"event: audio\ndata: {json.dumps({'audio_base64': audio_base64, 'text': sentence}, ensure_ascii=False)}\n\n"
-                        except Exception as e:
-                            logger.warning(f"TTS synthesis failed for sentence: {e}", exc_info=True)
-
+                        should_synthesize = True
                         break
+
+                # 其次查找逗号类（需要更长长度才触发）
+                if not should_synthesize:
+                    for ender in pause_enders:
+                        if ender in sentence_buffer and len(sentence_buffer) >= 25:
+                            idx = sentence_buffer.index(ender) + 1
+                            sentence_to_synthesize = sentence_buffer[:idx]
+                            sentence_buffer = sentence_buffer[idx:]
+                            should_synthesize = True
+                            break
+
+                # 最后是长度触发（更保守的切分）
+                if not should_synthesize and len(sentence_buffer) >= 30:
+                    # 寻找最近的合适切分点
+                    punct_idx = -1
+                    for i in range(len(sentence_buffer)-1, max(0, len(sentence_buffer)-10), -1):
+                        if sentence_buffer[i] in ['，', ',', ' ', '、', '：', ':']:
+                            punct_idx = i+1
+                            break
+                    if punct_idx > 0:
+                        sentence_to_synthesize = sentence_buffer[:punct_idx]
+                        sentence_buffer = sentence_buffer[punct_idx:]
+                        should_synthesize = True
+                    elif len(sentence_buffer) >= 35:  # 强制切分，但保留更多上下文
+                        sentence_to_synthesize = sentence_buffer[:18]
+                        sentence_buffer = sentence_buffer[18:]
+                        should_synthesize = True
+
+                if should_synthesize and sentence_to_synthesize.strip():
+                    # 合成音频
+                    try:
+                        logger.info(f"TTS: synthesizing chunk: {sentence_to_synthesize[:30]}...")
+                        audio_data = await tts_service.synthesize(sentence_to_synthesize)
+                        _tts_chars[0] += len(sentence_to_synthesize)
+                        logger.info(f"TTS: got audio data, length: {len(audio_data)}")
+                        import base64
+                        audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                        yield f"event: audio\ndata: {json.dumps({'audio_base64': audio_base64, 'text': sentence_to_synthesize}, ensure_ascii=False)}\n\n"
+                    except Exception as e:
+                        logger.warning(f"TTS synthesis failed for chunk: {e}", exc_info=True)
 
             # 处理剩余的文本
             if sentence_buffer.strip():
@@ -268,6 +299,9 @@ async def send_message_stream(
 
             # 使用独立的 session 保存 AI 消息（原 session 已在 StreamingResponse 返回后关闭）
             logger.info(f"Attempting to save AI message, full_response length: {len(full_response)}")
+            if not full_response.strip():
+                logger.warning("LLM returned empty response, skipping save")
+                return
             try:
                 async with async_session_maker() as save_db:
                     ai_message = Message(

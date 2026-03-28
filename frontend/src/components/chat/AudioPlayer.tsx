@@ -14,12 +14,14 @@ function formatDuration(seconds: number): string {
 
 interface AudioPlayerProps {
   messageId: string;
+  audioUrl?: string; // 直接传入 blob URL，跳过缓存加载
   fallbackSrc?: string;
   className?: string;
 }
 
 export function AudioPlayer({
   messageId,
+  audioUrl: directAudioUrl,
   fallbackSrc,
   className,
 }: AudioPlayerProps) {
@@ -30,10 +32,16 @@ export function AudioPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 尝试从缓存加载
+  // 直接 URL 优先，否则从缓存加载
   useEffect(() => {
+    if (directAudioUrl) {
+      setAudioSrc(directAudioUrl);
+      setIsLoading(false);
+      return;
+    }
+
     let mounted = true;
-    
+
     async function loadFromCache() {
       try {
         const cached = await getAudio(messageId);
@@ -46,10 +54,10 @@ export function AudioPlayer({
       }
       if (mounted) setIsLoading(false);
     }
-    
+
     loadFromCache();
     return () => { mounted = false; };
-  }, [messageId]);
+  }, [messageId, directAudioUrl]);
 
   // 从服务器加载
   const loadFromServer = async () => {
@@ -156,13 +164,13 @@ export function AudioPlayer({
     >
       <div className={cn(
         "w-6 h-6 rounded-full flex items-center justify-center",
-        isPlaying ? "bg-blue-500 text-white" : "bg-gray-300 text-gray-600"
+        isPlaying ? "bg-red-600 text-white" : "bg-gray-200 text-gray-600"
       )}>
         {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
       </div>
 
-      <div className="w-16 h-1 bg-gray-300 rounded-full overflow-hidden">
-        <div className="h-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
+      <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-full bg-red-600 transition-all" style={{ width: `${progress}%` }} />
       </div>
 
       <span className="text-xs text-gray-500 tabular-nums min-w-[32px]">

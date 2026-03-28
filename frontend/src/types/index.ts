@@ -45,6 +45,7 @@ export interface Message {
   createdAt: string;
   hasAudio: boolean;
   audioDuration?: number;
+  audioUrl?: string; // 前端临时 blob URL，不持久化
   metadata?: MessageMetadata;
 }
 
