@@ -436,7 +436,22 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           const farewellPattern = /再见|拜拜|goodbye|bye|结束通话|挂断了|下次见|保重/i;
           if (!farewellTriggeredRef.current && farewellPattern.test(newTranscript)) {
             farewellTriggeredRef.current = true;
-            setTimeout(() => handleVideoCallToggleRef.current?.(), 1500);
+            setTimeout(() => {
+              // 直接执行挂断，不依赖 isVideoCallActive 状态
+              omniAudioEnabledRef.current = false;
+              omniAudioCtxRef.current?.close();
+              omniAudioCtxRef.current = null;
+              omniNextStartTimeRef.current = 0;
+              omniClientRef.current?.disconnect();
+              omniClientRef.current = null;
+              farewellTriggeredRef.current = false;
+              setIsVideoCallActive(false);
+              setIsAiSpeaking(false);
+              setVideoCallStatus('idle');
+              setAiTranscript("");
+              setIsMuted(false);
+              setIsCameraOff(false);
+            }, 1500);
           }
           return newTranscript;
         });
