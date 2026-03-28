@@ -41,6 +41,11 @@ export function useMessages(
   const setMessages = useConversationStore((s) => s.setMessages);
   const setIsLoadingMessages = useConversationStore((s) => s.setIsLoadingMessages);
 
+  // Debug: 监控 messages 变化
+  useEffect(() => {
+    console.log('[useMessages] messages changed:', messages.length, messages.map(m => ({ id: m.id.slice(0,8), hasUrl: !!m.audioUrl })));
+  }, [messages]);
+
   // 会话消息缓存 - Map<conversationId, Message[]>
   const messagesCacheRef = useRef<Map<string, Message[]>>(new Map());
   
@@ -143,9 +148,16 @@ export function useMessages(
     loadAbortRef.current = controller;
     const abortSignal = controller.signal;
 
-    // 如有缓存直接用，否则清空并显示骨架屏
+    // 如有缓存直接用，但合并当前 store 中可能的新消息
     const cached = messagesCacheRef.current.get(activeConversationId);
-    if (cached) {
+    const currentMessages = useConversationStore.getState().messages;
+    const currentConvMessages = currentMessages.filter(m => m.conversationId === activeConversationId);
+    
+    // 如果 store 中有当前会话的消息（可能是刚发送的），优先使用
+    if (currentConvMessages.length > 0) {
+      setMessages(currentConvMessages);
+      setIsLoadingMessages(false);
+    } else if (cached) {
       setMessages(cached);
       setIsLoadingMessages(false);
     } else {

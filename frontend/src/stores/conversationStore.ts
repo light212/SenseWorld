@@ -79,10 +79,15 @@ export const useConversationStore = create<ConversationState>()(
             state.currentConversationId === id ? null : state.currentConversationId,
         })),
       
-      setMessages: (messages) => set({ messages }),
+      setMessages: (messages) => {
+        console.log('[Store] setMessages:', messages.length, messages.slice(0,3).map(m => ({ id: m.id.slice(0,8), hasUrl: !!m.audioUrl })));
+        set({ messages });
+      },
       
-      addMessage: (message) =>
-        set((state) => ({ messages: [...state.messages, message] })),
+      addMessage: (message) => {
+        console.log('[Store] addMessage:', { id: message.id.slice(0,8), hasUrl: !!message.audioUrl, audioUrl: message.audioUrl?.slice(0,30) });
+        set((state) => ({ messages: [...state.messages, message] }));
+      },
       
       updateStreamingContent: (content) =>
         set((state) => ({ streamingContent: state.streamingContent + content })),
