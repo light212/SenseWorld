@@ -120,21 +120,14 @@ class OmniRealtimeService:
             "turn_detection": {
                 "type": "server_vad",
                 "threshold": 0.5,
-                "silence_duration_ms": 800,
+                "silence_duration_ms": 800
             },
             "max_tokens": 16384,
             "repetition_penalty": 1.05,
         }
         if instructions:
             session["instructions"] = instructions
-
-        event = {
-            "type": "session.update",
-            "session": session,
-        }
-        if not self.ws or not self._is_connected:
-            raise RuntimeError("Not connected")
-        self.ws.send(json.dumps(event))
+        self.send_event("session.update", {"session": session})
 
     def send_video_frame(self, image_data: bytes):
         """
