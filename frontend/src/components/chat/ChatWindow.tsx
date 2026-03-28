@@ -52,6 +52,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const omniClientRef = useRef<OmniClient | null>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
   const handleVideoCallToggleRef = useRef<(() => void) | null>(null);
+  const farewellTriggeredRef = useRef(false);
   // Omni PCM 音频串行播放器
   const omniAudioCtxRef = useRef<AudioContext | null>(null);
   const omniNextStartTimeRef = useRef<number>(0);
@@ -378,6 +379,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       omniClientRef.current?.disconnect();
       omniClientRef.current = null;
       omniAudioEnabledRef.current = false;
+      farewellTriggeredRef.current = false;
       omniAudioCtxRef.current?.close();
       omniAudioCtxRef.current = null;
       omniNextStartTimeRef.current = 0;
@@ -432,7 +434,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           const newTranscript = prev + text;
           // 检测 AI 回复中的告别语，自动挂断
           const farewellPattern = /再见|拜拜|goodbye|bye|结束通话|挂断了|下次见|保重/i;
-          if (farewellPattern.test(newTranscript)) {
+          if (!farewellTriggeredRef.current && farewellPattern.test(newTranscript)) {
+            farewellTriggeredRef.current = true;
             setTimeout(() => handleVideoCallToggleRef.current?.(), 1500);
           }
           return newTranscript;
@@ -461,6 +464,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       onError: () => {
         toast.error('视频通话连接失败');
         omniAudioEnabledRef.current = false;
+        farewellTriggeredRef.current = false;
         omniAudioCtxRef.current?.close();
         omniAudioCtxRef.current = null;
         omniNextStartTimeRef.current = 0;
@@ -471,6 +475,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       },
       onClose: () => {
         omniAudioEnabledRef.current = false;
+        farewellTriggeredRef.current = false;
         omniAudioCtxRef.current?.close();
         omniAudioCtxRef.current = null;
         omniNextStartTimeRef.current = 0;
