@@ -105,10 +105,60 @@ class OmniRealtimeService:
             logger.error(f"Failed to connect: {e}")
             return False
 
+    def send_session_update(self, instructions: str = ""):
+        """
+        Send session.update event to configure the session.
+
+        Args:
+            instructions: Optional system instructions string
+        """
+        session = {
+            "modalities": ["audio", "text"],
+            "voice": "Chelsie",
+            "input_audio_format": "pcm",
+            "output_audio_format": "pcm",
+            "turn_detection": {
+                "type": "server_vad",
+                "threshold": 0.5,
+                "silence_duration_ms": 800
+            },
+            "max_tokens": 16384,
+            "repetition_penalty": 1.05,
+            "tools": [
+                {
+                    "type": "function",
+                    "name": "end_call",
+                    "description": "当用户明确表达结束对话的意图时调用，例如说再见、拜拜、结束通话、挂断等。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            ],
+            "tool_choice": "auto",
+        }
+        if instructions:
+            session["instructions"] = instructions
+        self.send_event("session.update", {"session": session})
+
+    def send_video_frame(self, image_data: bytes):
+        """
+        Send a video frame to the conversation.
+
+        Args:
+            image_data: JPEG image bytes
+        """
+        image_base64 = base64.b64encode(image_data).decode()
+        self.send_event("input_image_buffer.append", {
+            "image": image_base64
+        })
+
     def _on_open(self, ws):
         """WebSocket opened."""
         logger.info(f"Connected to DashScope Omni: {self.config.url}")
         self._is_connected = True
+        self.send_session_update()
         self._trigger("on_open")
 
     def _on_message(self, ws, message: str):
