@@ -425,7 +425,15 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         }
       },
       onText: (text) => {
-        setAiTranscript(prev => prev + text);
+        setAiTranscript(prev => {
+          const newTranscript = prev + text;
+          // 检测 AI 回复中的告别语，自动挂断
+          const farewellPattern = /再见|拜拜|goodbye|bye|结束通话|挂断了|下次见|保重/i;
+          if (farewellPattern.test(newTranscript)) {
+            setTimeout(() => handleVideoCallToggle(), 1500);
+          }
+          return newTranscript;
+        });
       },
       onAudio: (audioData) => {
         // 串行调度 PCM delta，避免叠音
