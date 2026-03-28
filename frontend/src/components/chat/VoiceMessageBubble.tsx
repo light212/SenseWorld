@@ -96,10 +96,10 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   return (
     <div
       onClick={handleClick}
-      className={`flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer select-none max-w-[200px] ${
+      className={`flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer select-none max-w-[200px] transition-all hover:shadow-md ${
         isUser
           ? 'bg-gradient-to-r from-red-600 to-red-700 text-white rounded-tr-sm'
-          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
+          : 'bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
       }`}
     >
       {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
@@ -109,9 +109,9 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
         {staticHeights.map((h, i) => (
           <div
             key={i}
-            className={`w-[3px] rounded-full transition-all ${
+            className={`w-[3px] rounded-full transition-all duration-150 ${
               isPlaying ? 'animate-pulse' : ''
-            } ${isUser ? 'bg-white/70' : 'bg-gray-300'}`}
+            } ${isUser ? 'bg-white/70' : 'bg-red-400'}`}
             style={{
               height: isPlaying ? `${h + Math.random() * 8}px` : `${h}px`,
             }}
@@ -121,7 +121,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
 
       {/* 时长 */}
       <span className={`text-sm font-medium tabular-nums ${
-        isUser ? 'text-white/90' : 'text-gray-500'
+        isUser ? 'text-white/90' : 'text-gray-600'
       }`}>
         {formatTime(actualDuration)}
       </span>

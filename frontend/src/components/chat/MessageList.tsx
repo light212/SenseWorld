@@ -106,7 +106,8 @@ interface MessageItemProps {
 const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user";
   const isVoiceMessage = message.metadata?.inputType === "voice";
-  const isLoading = !isUser && !message.content;
+  // 加载状态：没有内容且没有音频
+  const isLoading = !isUser && !message.content && !message.hasAudio;
 
   return (
     <div className={cn("flex items-end gap-3", isUser && "flex-row-reverse")}>
@@ -138,13 +139,22 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
             </div>
           </div>
         ) : isVoiceMessage && isUser ? (
+          // 用户语音消息
           <VoiceMessageBubble
             messageId={message.id}
             duration={message.audioDuration || 0}
             audioUrl={message.audioUrl}
             isUser={isUser}
           />
+        ) : isVoiceMessage && !isUser && message.hasAudio ? (
+          // AI 语音消息 - 显示语音条（与用户风格一致）
+          <VoiceMessageBubble
+            messageId={message.id}
+            duration={message.audioDuration || 0}
+            isUser={false}
+          />
         ) : (
+          // 文字消息
           <div
             className={cn(
               "rounded-2xl px-4 py-2.5",
@@ -154,13 +164,6 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
             )}
           >
             <p className="whitespace-pre-wrap text-[15px] leading-relaxed break-words">{message.content}</p>
-            {/* AI 语音播放器 */}
-            {message.hasAudio && !isUser && (
-              <AudioPlayer
-                messageId={message.id}
-                className="mt-2"
-              />
-            )}
           </div>
         )}
 
