@@ -199,10 +199,6 @@ function ConversationItem({
           </p>
           <span className="flex-shrink-0 text-xs text-gray-400">{timeLabel}</span>
         </div>
-        <p className="text-xs text-gray-400 truncate mt-0.5">
-          {/* Conversation type has no lastMessage field; show empty preview */}
-          {""}
-        </p>
       </div>
 
       {/* Delete button — hover only */}
