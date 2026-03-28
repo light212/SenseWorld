@@ -1,4 +1,5 @@
 import { memo, useRef, useState, useEffect } from 'react';
+import { getAudio, createAudioUrl } from '@/lib/audio-cache';
 
 interface VoiceMessageBubbleProps {
   messageId: string;
@@ -11,14 +12,39 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   messageId,
   duration = 0,
   isUser = false,
-  audioUrl,
+  audioUrl: propsAudioUrl,
 }: VoiceMessageBubbleProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [actualDuration, setActualDuration] = useState(duration);
+  const [audioUrl, setAudioUrl] = useState<string | null>(propsAudioUrl || null);
 
   // 声波高度模式
   const staticHeights = [4, 8, 12, 6, 16, 10, 8, 14, 6, 12, 16, 8, 4, 10, 14];
+
+  // 如果没有 propsAudioUrl，尝试从缓存加载
+  useEffect(() => {
+    if (propsAudioUrl) {
+      setAudioUrl(propsAudioUrl);
+      return;
+    }
+    
+    if (!messageId) return;
+    
+    const loadFromCache = async () => {
+      try {
+        const cached = await getAudio(messageId);
+        if (cached?.audioChunks?.length > 0) {
+          const url = createAudioUrl(cached.audioChunks);
+          setAudioUrl(url);
+        }
+      } catch (e) {
+        console.warn('Failed to load audio from cache:', e);
+      }
+    };
+    
+    loadFromCache();
+  }, [messageId, propsAudioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -41,7 +67,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, []);
+  }, [audioUrl]);
 
   const handleClick = async () => {
     const audio = audioRef.current;
