@@ -25,10 +25,12 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const messages = useConversationStore((s) => s.messages);
   const streamingContent = useConversationStore((s) => s.streamingContent);
   const isStreaming = useConversationStore((s) => s.isStreaming);
+  const isLoadingMessages = useConversationStore((s) => s.isLoadingMessages);
   const isSendingMessage = useConversationStore((s) => s.isSendingMessage);
   const addMessage = useConversationStore((s) => s.addMessage);
   const setMessages = useConversationStore((s) => s.setMessages);
   const setIsSendingMessage = useConversationStore((s) => s.setIsSendingMessage);
+  const setIsLoadingMessages = useConversationStore((s) => s.setIsLoadingMessages);
   const updateStreamingContent = useConversationStore((s) => s.updateStreamingContent);
   const clearStreamingContent = useConversationStore((s) => s.clearStreamingContent);
   const setIsStreaming = useConversationStore((s) => s.setIsStreaming);
@@ -39,6 +41,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const isPlayingRef = useRef(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null); // Bug 1: 跟踪当前音频
   const messagesCacheRef = useRef<Map<string, Message[]>>(new Map()); // 会话消息缓存
+  const loadAbortRef = useRef<AbortController | null>(null); // 取消上一个消息加载请求
 
   // 使用传入的 conversationId 或 store 中的
   const activeConversationId = conversationId || currentConversationId;
@@ -112,18 +115,26 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     
     // Bug 1: 停止当前音频
     stopCurrentAudio();
-    
+
+    // 取消上一个未完成的请求
+    loadAbortRef.current?.abort();
+    loadAbortRef.current = new AbortController();
+    const abortSignal = loadAbortRef.current.signal;
+
     // 先用缓存（如果有）
     const cached = messagesCacheRef.current.get(activeConversationId);
     if (cached) {
       setMessages(cached);
+      setIsLoadingMessages(false);
+    } else {
+      setIsLoadingMessages(true);
     }
-    
+
     const loadMessages = async () => {
       try {
         const response = await fetch(
           `http://localhost:8000/v1/conversations/${activeConversationId}/messages`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` }, signal: abortSignal }
         );
         if (response.ok) {
           const data = await response.json();
@@ -150,11 +161,17 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           }
         }
       } catch (error) {
-        console.error("Failed to load messages:", error);
+        if ((error as Error).name !== "AbortError") {
+          console.error("Failed to load messages:", error);
+        }
+      } finally {
+        if (!abortSignal.aborted) {
+          setIsLoadingMessages(false);
+        }
       }
     };
     loadMessages();
-  }, [activeConversationId, token, setMessages, stopCurrentAudio]);
+  }, [activeConversationId, token, setMessages, stopCurrentAudio, setIsLoadingMessages]);
 
   // 流式聊天请求
   const streamChat = useCallback(async (text: string, inputType: "text" | "voice" = "text", messageId?: string, audioDuration?: number) => {
@@ -342,6 +359,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           messages={messages}
           streamingContent={streamingContent}
           isStreaming={isStreaming}
+          isLoading={isLoadingMessages}
         />
       </div>
 

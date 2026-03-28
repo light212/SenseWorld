@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAudio, createAudioUrl } from "@/lib/audio-cache";
+import { useAuthStore } from "@/stores/authStore";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -36,7 +37,7 @@ export function AudioPlayer({
     async function loadFromCache() {
       try {
         const cached = await getAudio(messageId);
-        if (cached?.audioChunks?.length > 0 && mounted) {
+        if (cached && cached.audioChunks && cached.audioChunks.length > 0 && mounted) {
           const url = createAudioUrl(cached.audioChunks);
           setAudioSrc(url);
         }
@@ -54,9 +55,12 @@ export function AudioPlayer({
   const loadFromServer = async () => {
     if (!fallbackSrc) return;
     setIsLoading(true);
-    
+
     try {
-      const response = await fetch(fallbackSrc);
+      const token = useAuthStore.getState().token;
+      const response = await fetch(fallbackSrc, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (response.ok) {
         const blob = await response.blob();
         if (blob.size > 0) {

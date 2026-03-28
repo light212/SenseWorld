@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { useAuthStore, useAuthHydration } from "@/stores/authStore";
@@ -25,6 +25,7 @@ export default function ChatPage() {
   } = useConversationStore();
   const [userName, setUserName] = useState("");
   const [checking, setChecking] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // 加载用户信息
   useEffect(() => {
@@ -133,6 +134,7 @@ export default function ChatPage() {
           const conversation = await response.json();
           const newConv: Conversation = {
             id: conversation.id,
+            userId: conversation.user_id || "",
             title: conversation.title || "新对话",
             createdAt: conversation.created_at,
             updatedAt: conversation.updated_at,
@@ -170,6 +172,7 @@ export default function ChatPage() {
         const conversation = await response.json();
         const newConv: Conversation = {
           id: conversation.id,
+          userId: conversation.user_id || "",
           title: conversation.title || "新对话",
           createdAt: conversation.created_at,
           updatedAt: conversation.updated_at,
@@ -222,6 +225,7 @@ export default function ChatPage() {
     (id: string) => {
       setCurrentConversation(id);
       localStorage.setItem("currentConversationId", id);
+      setSidebarOpen(false);
     },
     [setCurrentConversation]
   );
@@ -249,6 +253,13 @@ export default function ChatPage() {
       {/* Header - 亮色主题 */}
       <header className="flex-shrink-0 border-b border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 cursor-pointer"
+            aria-label="切换会话列表"
+          >
+            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -270,17 +281,25 @@ export default function ChatPage() {
       
       <div className="flex flex-1 min-h-0">
         {/* Conversation list sidebar */}
-        <aside className="w-64 border-r border-gray-200 hidden md:flex flex-col bg-white">
+        <aside className={`w-64 border-r border-gray-200 flex flex-col bg-white absolute md:relative inset-y-0 left-0 z-20 transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
           <ConversationList
             conversations={conversations}
             selectedId={currentConversationId || undefined}
             onSelect={handleSelectConversation}
             onDelete={handleDeleteConversation}
             onCreate={handleCreateConversation}
+            isLoading={isLoadingConversations}
             className="h-full p-4"
           />
         </aside>
-        
+
+        {sidebarOpen && (
+          <div
+            className="md:hidden fixed inset-0 z-10 bg-black/30"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Chat window */}
         <div className="flex-1 flex flex-col min-h-0 bg-white">
           <ChatWindow />

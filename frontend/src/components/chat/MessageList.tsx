@@ -16,6 +16,7 @@ interface MessageListProps {
   messages: Message[];
   streamingContent?: string;
   isStreaming?: boolean;
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -23,6 +24,7 @@ export function MessageList({
   messages,
   streamingContent = "",
   isStreaming = false,
+  isLoading = false,
   className,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -30,6 +32,23 @@ export function MessageList({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4 p-4 bg-gray-50 min-h-full">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className={`flex gap-3 ${i % 2 === 0 ? "justify-end" : ""}`}>
+            {i % 2 !== 0 && <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 animate-pulse" />}
+            <div className={`flex flex-col gap-1 max-w-[60%] ${i % 2 === 0 ? "items-end" : ""}`}>
+              <div className="h-10 rounded-2xl bg-gray-200 animate-pulse" style={{ width: `${120 + i * 40}px` }} />
+              <div className="h-3 w-12 rounded bg-gray-100 animate-pulse" />
+            </div>
+            {i % 2 === 0 && <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 animate-pulse" />}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if (messages.length === 0 && !isStreaming) {
     return <EmptyState />;

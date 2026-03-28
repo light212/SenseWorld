@@ -45,7 +45,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
       if (messageId) {
         try {
           const cached = await getAudio(messageId);
-          if (cached?.audioChunks?.length > 0 && mounted) {
+          if (cached && cached.audioChunks && cached.audioChunks.length > 0 && mounted) {
             const url = createAudioUrl(cached.audioChunks);
             setCurrentUrl(url);
           }
@@ -60,6 +60,18 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
       mounted = false;
     };
   }, [messageId, audioBlob, audioUrl]);
+
+  // 音频 URL 就绪后预加载时长
+  useEffect(() => {
+    if (!currentUrl || duration > 0) return;
+    const audio = new Audio(currentUrl);
+    audio.onloadedmetadata = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setActualDuration(Math.round(audio.duration * 1000));
+      }
+    };
+    audio.load();
+  }, [currentUrl, duration]);
 
   const formatDuration = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);

@@ -28,6 +28,8 @@ export function AlertBadge({ token }: AlertBadgeProps) {
     };
 
     fetchCount();
+  const interval = setInterval(fetchCount, 60_000);
+  return () => clearInterval(interval);
   }, [token]);
 
   return (

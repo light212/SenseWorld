@@ -9,6 +9,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useAuthStore } from "@/stores/authStore";
 import { Mic, Send, Video, Plus, X, RotateCcw, MicOff, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
@@ -188,8 +189,10 @@ export function CompactInputBar({
           formData.append("audio", blob, "recording.webm");
           formData.append("language", "zh");
 
+          const token = useAuthStore.getState().token;
           const response = await fetch("http://localhost:8000/v1/speech/transcribe", {
             method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
             body: formData,
           });
 
