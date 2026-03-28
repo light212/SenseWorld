@@ -157,6 +157,14 @@ class OmniSession:
                 if text:
                     self.omni_service.send_text(text)
 
+            elif msg_type == "image_frame":
+                # Forward video frame to Omni
+                image_base64 = payload.get("image")
+                if image_base64:
+                    image_data = base64.b64decode(image_base64)
+                    self.omni_service.send_video_frame(image_data)
+                    logger.debug(f"Sent video frame, size={len(image_data)} bytes")
+
             elif msg_type == "cancel":
                 # Cancel current response
                 self.omni_service.cancel_response()
