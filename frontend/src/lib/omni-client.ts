@@ -244,7 +244,12 @@ export class OmniClient {
    * Stop recording audio
    */
   stopRecording(): void {
-    if (!this.isRecording) return;
+    if (!this.isRecording) {
+      // 即使 isRecording 为 false，也强制停止所有 audio tracks
+      this.mediaStream?.getTracks().forEach(t => t.stop());
+      this.mediaStream = null;
+      return;
+    }
 
     if (this.audioWorklet) {
       this.audioWorklet.disconnect();

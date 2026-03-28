@@ -442,8 +442,11 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               omniAudioCtxRef.current?.close();
               omniAudioCtxRef.current = null;
               omniNextStartTimeRef.current = 0;
-              omniClientRef.current?.disconnect();
+              const client = omniClientRef.current;
               omniClientRef.current = null;
+              client?.stopCamera();
+              client?.stopRecording();
+              client?.disconnect();
               farewellTriggeredRef.current = false;
               setIsVideoCallActive(false);
               setIsAiSpeaking(false);
