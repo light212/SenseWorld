@@ -316,16 +316,6 @@ async def send_message_stream(
                         output_tokens=_usage[1],
                         cost=0,
                     ))
-                    if _tts_chars[0] > 0:
-                        save_db.add(UsageLog(
-                            model_type="tts",
-                            model_name=tts_service.model,
-                            user_id=user_id,
-                            conversation_id=conversation_id,
-                            input_tokens=_tts_chars[0],
-                            output_tokens=0,
-                            cost=0,
-                        ))
 
                     await save_db.commit()
                     logger.info(f"Saved AI msg {message_id[:8]}")
