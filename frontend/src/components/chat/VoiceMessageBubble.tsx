@@ -37,7 +37,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     const loadFromCache = async () => {
       try {
         const cached = await getAudio(messageId);
-        if (cached?.audioChunks?.length > 0) {
+        if (cached && cached.audioChunks && cached.audioChunks.length > 0) {
           const url = createAudioUrl(cached.audioChunks);
           setAudioUrl(url);
         }
