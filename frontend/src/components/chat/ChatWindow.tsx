@@ -432,16 +432,15 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      {/* 视频通话面板 */}
-      {isVideoCallActive && (
-        <div className="flex items-center gap-4 p-3 bg-gray-900 border-b border-gray-700">
-          <video
-            ref={videoElementRef}
-            autoPlay
-            muted
-            playsInline
-            className="w-40 h-30 rounded-lg object-cover bg-gray-800"
-          />
+      {/* 视频通话面板：video 元素始终渲染（挂 ref），面板在激活时显示 */}
+      <div className={isVideoCallActive ? "flex items-center gap-4 p-3 bg-gray-900 border-b border-gray-700" : "hidden"}>
+        <video
+          ref={videoElementRef}
+          autoPlay
+          muted
+          playsInline
+          className="w-40 h-30 rounded-lg object-cover bg-gray-800"
+        />
           <div className="flex flex-col items-center gap-2">
             <div className={cn(
               "w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center",
@@ -464,8 +463,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           >
             <PhoneOff className="w-5 h-5" />
           </button>
-        </div>
-      )}
+      </div>
 
       {/* Messages area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 bg-gray-50">
