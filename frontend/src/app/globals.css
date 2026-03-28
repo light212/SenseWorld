@@ -22,6 +22,22 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 255, 255, 255;
   --background-end-rgb: 245, 245, 245;
+
+  /* Design tokens */
+  --brand: #DC2626;
+  --brand-dark: #991B1B;
+  --brand-gradient: linear-gradient(135deg, #DC2626, #991B1B);
+  --bg-page: #F9FAFB;
+  --bg-card: #FFFFFF;
+  --bg-muted: #F1F5F9;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --border: #E2E8F0;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --video-modal-bg: #0D1117;
 }
 
 @media (prefers-color-scheme: dark) {
