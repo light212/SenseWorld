@@ -148,7 +148,7 @@ export function createAudioUrl(audioChunks: string[]): string {
   
   // 如果只有一个 chunk，直接返回
   if (decodedChunks.length === 1) {
-    const blob = new Blob([decodedChunks[0]], { type: 'audio/wav' });
+    const blob = new Blob([decodedChunks[0].buffer as ArrayBuffer], { type: 'audio/wav' });
     return URL.createObjectURL(blob);
   }
   
@@ -193,6 +193,6 @@ export function createAudioUrl(audioChunks: string[]): string {
   merged[42] = (dataSize >> 16) & 0xff;
   merged[43] = (dataSize >> 24) & 0xff;
   
-  const blob = new Blob([merged], { type: 'audio/wav' });
+  const blob = new Blob([merged.buffer as ArrayBuffer], { type: 'audio/wav' });
   return URL.createObjectURL(blob);
 }

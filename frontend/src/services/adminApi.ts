@@ -180,6 +180,8 @@ class AdminApiClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
+    const method = options.method || "GET";
+
     const headers: HeadersInit = {
       "Content-Type": "application/json",
       ...options.headers,
@@ -189,7 +191,7 @@ class AdminApiClient {
       (headers as Record<string, string>)["Authorization"] = `Bearer ${this.token}`;
     }
 
-    return measurePerformance(`Admin API ${options.method || "GET"} ${endpoint}`, async () => {
+    return measurePerformance(`Admin API ${method} ${endpoint}`, async () => {
       try {
         const response = await fetch(url, { ...options, headers });
         const traceId = response.headers.get("X-Trace-ID") || undefined;
@@ -408,6 +410,10 @@ class AdminApiClient {
 
   async deleteTerminal(id: string): Promise<void> {
     return this.request<void>(`/admin/terminals/${id}`, { method: "DELETE" });
+  }
+
+  async getStats(): Promise<{ total_users: number; total_conversations: number; total_messages: number }> {
+    return this.request("/admin/stats");
   }
 }
 

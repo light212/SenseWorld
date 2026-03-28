@@ -236,7 +236,7 @@ export function reportError(
   //   body: JSON.stringify(report),
   // }).catch(() => {});
   
-  logger.debug("Error reported", report);
+  logger.debug("Error reported", report as unknown as Record<string, unknown>);
 }
 
 /**

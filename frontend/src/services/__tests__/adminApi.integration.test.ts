@@ -76,7 +76,7 @@ describeIf(ENABLE_INTEGRATION_TESTS)('Admin API Integration Tests', () => {
     describe('POST /admin/models', () => {
       it('应该创建新的模型配置', async () => {
         const newConfig = {
-          model_type: 'llm',
+          model_type: 'llm' as const,
           model_name: 'test-model',
           provider: 'openai',
           api_key: 'test-api-key',
@@ -107,7 +107,7 @@ describeIf(ENABLE_INTEGRATION_TESTS)('Admin API Integration Tests', () => {
 
       it('应该拒绝无效的模型类型', async () => {
         const invalidConfig = {
-          model_type: 'invalid_type',
+          model_type: 'invalid_type' as 'llm',
           model_name: 'test-model',
           provider: 'openai',
         };

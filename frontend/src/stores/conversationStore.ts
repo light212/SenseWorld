@@ -41,6 +41,7 @@ interface ConversationState {
   setIsSendingMessage: (isSending: boolean) => void;
   setHasHydrated: (state: boolean) => void;
   setIsLoadingConversations: (loading: boolean) => void;
+  setIsLoadingMessages: (loading: boolean) => void;
 }
 
 export const useConversationStore = create<ConversationState>()(
@@ -91,13 +92,21 @@ export const useConversationStore = create<ConversationState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
       
       setIsLoadingConversations: (loading) => set({ isLoadingConversations: loading }),
+      setIsLoadingMessages: (loading) => set({ isLoadingMessages: loading }),
     }),
     {
       name: "conversation-storage",
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
+        state?.setIsLoadingMessages(false);
+        state?.setIsLoadingConversations(false);
       },
+      partialize: (state) => ({
+        currentConversationId: state.currentConversationId,
+        conversations: state.conversations,
+        messages: state.messages,
+      }),
     }
   )
 );
