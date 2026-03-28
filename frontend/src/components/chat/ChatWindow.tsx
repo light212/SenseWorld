@@ -36,6 +36,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const setIsStreaming = useConversationStore((s) => s.setIsStreaming);
 
   const token = useAuthStore((s) => s.token);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const audioQueueRef = useRef<string[]>([]);
   const audioChunksForSaveRef = useRef<string[]>([]); // 用于保存到缓存的音频
   const isPlayingRef = useRef(false);
@@ -121,12 +122,13 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     loadAbortRef.current = new AbortController();
     const abortSignal = loadAbortRef.current.signal;
 
-    // 先用缓存（如果有）
+    // 如有缓存直接用，否则清空并显示骨架屏
     const cached = messagesCacheRef.current.get(activeConversationId);
     if (cached) {
       setMessages(cached);
       setIsLoadingMessages(false);
     } else {
+      setMessages([]);
       setIsLoadingMessages(true);
     }
 
@@ -354,12 +356,13 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 bg-gray-50">
         <MessageList
           messages={messages}
           streamingContent={streamingContent}
           isStreaming={isStreaming}
           isLoading={isLoadingMessages}
+          scrollContainerRef={scrollContainerRef}
         />
       </div>
 

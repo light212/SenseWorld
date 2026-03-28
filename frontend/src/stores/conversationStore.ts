@@ -105,7 +105,6 @@ export const useConversationStore = create<ConversationState>()(
       partialize: (state) => ({
         currentConversationId: state.currentConversationId,
         conversations: state.conversations,
-        messages: state.messages,
       }),
     }
   )

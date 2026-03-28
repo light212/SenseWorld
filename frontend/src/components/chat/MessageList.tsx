@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useRef, memo } from "react";
+import type React from "react";
 import { User, Bot } from "lucide-react";
 import type { Message } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
@@ -18,6 +19,7 @@ interface MessageListProps {
   isStreaming?: boolean;
   isLoading?: boolean;
   className?: string;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 export function MessageList({
@@ -26,12 +28,40 @@ export function MessageList({
   isStreaming = false,
   isLoading = false,
   className,
+  scrollContainerRef,
 }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const prevMessageCount = useRef(0);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+    const container = scrollContainerRef?.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const isNewMessage = messages.length === prevMessageCount.current + 1;
+    prevMessageCount.current = messages.length;
+
+    const scrollToBottom = (smooth: boolean) => {
+      if (smooth) {
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+    };
+
+    // 立即滚动
+    scrollToBottom(isNewMessage);
+
+    // 监听内容高度变化（如 AudioPlayer 异步加载）
+    const observer = new ResizeObserver(() => scrollToBottom(isNewMessage));
+    observer.observe(content);
+    // 500ms 后停止监听，避免无限触发
+    const timer = setTimeout(() => observer.disconnect(), 500);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [messages, streamingContent, scrollContainerRef, isLoading]);
 
   if (isLoading) {
     return (
@@ -55,8 +85,9 @@ export function MessageList({
   }
 
   return (
-    <div 
-      className={cn("flex flex-col gap-4 p-4 bg-gray-50 min-h-full", className)}
+    <div
+      ref={contentRef}
+      className={cn("flex flex-col gap-4 p-4 pb-6 bg-gray-50", className)}
       role="log"
       aria-live="polite"
     >
@@ -94,7 +125,6 @@ export function MessageList({
         </div>
       )}
 
-      <div ref={bottomRef} />
     </div>
   );
 }
