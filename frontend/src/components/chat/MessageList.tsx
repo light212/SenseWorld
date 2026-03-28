@@ -7,6 +7,7 @@
 import { useEffect, useRef, memo } from "react";
 import type React from "react";
 import { User, Bot } from "lucide-react";
+import { API_ENDPOINTS } from "@/lib/config";
 import type { Message } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
 import { AudioPlayer } from "./AudioPlayer";
@@ -147,7 +148,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
             isUser={isUser}
           />
         ) : isVoiceMessage && !isUser && message.hasAudio ? (
-          // AI 语音消息 - 显示语音条（与用户风格一致）
+          // AI 语音消息 - 从 IndexedDB 加载
           <VoiceMessageBubble
             messageId={message.id}
             duration={message.audioDuration || 0}
