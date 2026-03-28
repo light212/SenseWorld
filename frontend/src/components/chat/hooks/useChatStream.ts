@@ -7,7 +7,7 @@
 
 import { useCallback, useRef } from "react";
 import { useConversationStore } from "@/stores/conversationStore";
-import { saveAudio, createAudioUrl } from "@/lib/audio-cache";
+import { saveAudio, createAudioUrl, calculateWavDuration } from "@/lib/audio-cache";
 import { audioEngine } from "@/lib/audio-engine";
 import { logError, logWarning } from "@/lib/error-tracking";
 import { API_ENDPOINTS } from "@/lib/config";
@@ -237,7 +237,9 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         
         if (hasAudioChunks) {
           inMemoryAudioUrl = createAudioUrl(audioChunksForSaveRef.current);
-          saveAudio(finalMessageId, audioChunksForSaveRef.current).catch(console.error);
+          // 计算音频时长
+          const duration = calculateWavDuration(audioChunksForSaveRef.current);
+          saveAudio(finalMessageId, audioChunksForSaveRef.current, duration).catch(console.error);
           audioChunksForSaveRef.current = [];
         }
 

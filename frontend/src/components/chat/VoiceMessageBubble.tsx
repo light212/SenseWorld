@@ -40,6 +40,10 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
         if (cached?.audioChunks?.length) {
           const url = createAudioUrl(cached.audioChunks);
           setAudioUrl(url);
+          // 从缓存加载时长
+          if (cached.duration && cached.duration > 0) {
+            setDuration(cached.duration);
+          }
         }
       } catch (e) {
         // Ignore

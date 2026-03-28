@@ -33,13 +33,14 @@ async function openDB(): Promise<IDBDatabase> {
 export interface CachedAudio {
   messageId: string;
   audioChunks: string[]; // base64 chunks
+  duration?: number; // 音频时长（毫秒）
   createdAt: number;
 }
 
 /**
  * 保存音频到缓存
  */
-export async function saveAudio(messageId: string, audioChunks: string[]): Promise<void> {
+export async function saveAudio(messageId: string, audioChunks: string[], duration?: number): Promise<void> {
   const database = await openDB();
   
   return new Promise((resolve, reject) => {
@@ -49,6 +50,7 @@ export async function saveAudio(messageId: string, audioChunks: string[]): Promi
     const data: CachedAudio = {
       messageId,
       audioChunks,
+      duration,
       createdAt: Date.now(),
     };
     
@@ -56,6 +58,52 @@ export async function saveAudio(messageId: string, audioChunks: string[]): Promi
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
   });
+}
+
+/**
+ * 计算 WAV 音频时长（毫秒）
+ */
+export function calculateWavDuration(base64Chunks: string[]): number {
+  let totalBytes = 0;
+  let sampleRate = 16000; // 默认采样率
+  let bitsPerSample = 16;
+  let numChannels = 1;
+  
+  // 从第一个 chunk 解析 WAV 头
+  if (base64Chunks.length > 0) {
+    try {
+      const binary = atob(base64Chunks[0]);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      
+      // WAV 头解析
+      if (bytes.length >= 44) {
+        // 采样率在字节 24-27
+        sampleRate = bytes[24] | (bytes[25] << 8) | (bytes[26] << 16) | (bytes[27] << 24);
+        // 位深度在字节 34-35
+        bitsPerSample = bytes[34] | (bytes[35] << 8);
+        // 声道数在字节 22-23
+        numChannels = bytes[22] | (bytes[23] << 8);
+      }
+      
+      // 计算总数据大小（每个 chunk 都有 44 字节头部）
+      for (const chunk of base64Chunks) {
+        const chunkBinary = atob(chunk);
+        totalBytes += chunkBinary.length - 44; // 去掉 WAV 头
+      }
+    } catch (e) {
+      // 解析失败，返回 0
+      return 0;
+    }
+  }
+  
+  // 时长 = 数据字节数 / (采样率 * 声道数 * 位深度/8)
+  const bytesPerSample = bitsPerSample / 8;
+  const durationMs = (totalBytes / (sampleRate * numChannels * bytesPerSample)) * 1000;
+  
+  return Math.round(durationMs);
 }
 
 /**
@@ -71,7 +119,10 @@ export async function saveUserAudioBlob(messageId: string, blob: Blob): Promise<
   }
   const base64 = btoa(binary);
   
-  await saveAudio(messageId, [base64]);
+  // 计算 duration（假设是 WAV 格式）
+  const duration = calculateWavDuration([base64]);
+  
+  await saveAudio(messageId, [base64], duration);
 }
 
 /**
