@@ -40,7 +40,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
         if (cached?.audioChunks?.length) {
           const url = createAudioUrl(cached.audioChunks);
           setAudioUrl(url);
-          // 从缓存加载时长
+          // 从缓存加载时长（如果有的话）
           if (cached.duration && cached.duration > 0) {
             setDuration(cached.duration);
           }
@@ -52,6 +52,13 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     
     loadFromCache();
   }, [messageId, propsAudioUrl]);
+  
+  // 当 propsAudioUrl 变化时，也更新时长（如果有 propDuration）
+  useEffect(() => {
+    if (propDuration > 0) {
+      setDuration(propDuration);
+    }
+  }, [propDuration]);
 
   const handleClick = async () => {
     if (!audioUrl) return;

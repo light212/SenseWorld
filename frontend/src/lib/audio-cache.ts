@@ -109,7 +109,7 @@ export function calculateWavDuration(base64Chunks: string[]): number {
 /**
  * 保存用户语音 Blob 到缓存
  */
-export async function saveUserAudioBlob(messageId: string, blob: Blob): Promise<void> {
+export async function saveUserAudioBlob(messageId: string, blob: Blob, duration?: number): Promise<void> {
   // 把 Blob 转成 base64
   const arrayBuffer = await blob.arrayBuffer();
   const uint8Array = new Uint8Array(arrayBuffer);
@@ -119,9 +119,7 @@ export async function saveUserAudioBlob(messageId: string, blob: Blob): Promise<
   }
   const base64 = btoa(binary);
   
-  // 计算 duration（假设是 WAV 格式）
-  const duration = calculateWavDuration([base64]);
-  
+  // 用户语音直接使用传入的 duration（录制时已知）
   await saveAudio(messageId, [base64], duration);
 }
 

@@ -135,8 +135,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       };
       addMessage(userMessage);
 
-      // 保存用户语音到 IndexedDB（用 userMessageId）
-      saveUserAudioBlob(userMessageId, blob).catch(() => {});
+      // 保存用户语音到 IndexedDB（用 userMessageId 和 duration）
+      saveUserAudioBlob(userMessageId, blob, duration).catch(() => {});
 
       // 发送流式聊天请求（传递 userMessageId 和 aiMessageId）
       sendMessage(confirmedText, "voice", userMessageId, aiMessageId, duration).catch(console.error);
