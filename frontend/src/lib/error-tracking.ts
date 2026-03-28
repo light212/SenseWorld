@@ -435,7 +435,6 @@ export class ErrorTracker {
   clearErrorHistory(): void {
     this.errorHistory = [];
     this.errorCounts.clear();
-    console.log('🧹 错误历史已清除');
   }
 
   /**

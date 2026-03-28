@@ -378,8 +378,6 @@ export class ProfessionalAudioEngine {
 
     // 清理对象池
     this.audioBufferPool.length = 0;
-
-    console.log('🔄 音频引擎已销毁');
   }
 }
 
@@ -429,4 +427,4 @@ class AudioProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('audio-processor', AudioProcessor);
-`;
+`;`;

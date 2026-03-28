@@ -72,7 +72,6 @@ export class OmniClient {
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
-        console.log('[OmniClient] Connected');
         this.state = 'connected';
         this.reconnectAttempts = 0;
         resolve();

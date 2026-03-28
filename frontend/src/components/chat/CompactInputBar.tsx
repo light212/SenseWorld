@@ -13,6 +13,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { Mic, Send, Video, Keyboard, X, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
+import { logError, logWarning } from "@/lib/error-tracking";
 
 interface CompactInputBarProps {
   onTextSend: (text: string) => void;
@@ -82,7 +83,7 @@ export function CompactInputBar({
           setMicPermission("unknown");
         }
       } catch (error) {
-        console.log("Permissions API not supported or error:", error);
+        // Permissions API 错误，不严重
         setMicPermission("unknown");
       }
     };
@@ -130,11 +131,8 @@ export function CompactInputBar({
         setRecordingDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
       }, 100);
     } catch (error: unknown) {
-      console.error("Failed to start recording:", error);
-      
       // 判断是用户拒绝还是其他错误
       const err = error as Error;
-      console.log("Error name:", err.name, "Message:", err.message);
       
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         setMicPermission("denied");
@@ -145,9 +143,11 @@ export function CompactInputBar({
         setShowMicGuide(true);
       } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
         // 麦克风被占用
+        logWarning("麦克风被其他应用占用", "audio", { error: err.message });
         toast.error("麦克风被其他应用占用，请关闭后重试");
       } else {
         // 其他错误
+        logError("麦克风启动失败", "audio", "medium", { error: err.message });
         toast.error("无法启动麦克风：" + (err.message || "未知错误"));
         setShowMicGuide(true);
       }

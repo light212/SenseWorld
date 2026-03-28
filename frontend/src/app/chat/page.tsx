@@ -8,6 +8,7 @@ import { ConversationList } from "@/components/chat/ConversationList";
 import { useAuthStore, useAuthHydration } from "@/stores/authStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import { API_ENDPOINTS } from "@/lib/config";
+import { logError } from "@/lib/error-tracking";
 import type { Conversation } from "@/types";
 
 export default function ChatPage() {
@@ -52,7 +53,7 @@ export default function ChatPage() {
           router.push("/login");
         }
       } catch (error) {
-        console.error("Failed to fetch user:", error);
+        // 用户信息加载失败，不严重
       } finally {
         setChecking(false);
       }
@@ -85,7 +86,7 @@ export default function ChatPage() {
           setConversations(loadedConversations);
         }
       } catch (error) {
-        console.error("Failed to fetch conversations:", error);
+        logError("加载会话列表失败", "network", "medium", { error });
       } finally {
         setIsLoadingConversations(false);
       }
@@ -145,10 +146,9 @@ export default function ChatPage() {
           addConversation(newConv);
           setCurrentConversation(conversation.id);
           localStorage.setItem("currentConversationId", conversation.id);
-          console.log("Created new conversation:", conversation.id);
         }
       } catch (error) {
-        console.error("Failed to create conversation:", error);
+        logError("自动创建会话失败", "network", "medium", { error });
       }
     };
 
@@ -185,7 +185,7 @@ export default function ChatPage() {
         localStorage.setItem("currentConversationId", conversation.id);
       }
     } catch (error) {
-      console.error("Failed to create conversation:", error);
+      logError("创建会话失败", "network", "medium", { error });
     }
   }, [token, addConversation, setCurrentConversation]);
 
@@ -215,7 +215,7 @@ export default function ChatPage() {
           }
         }
       } catch (error) {
-        console.error("Failed to delete conversation:", error);
+        logError("删除会话失败", "network", "medium", { error, conversationId: id });
       }
     },
     [token, removeConversation, currentConversationId, conversations, setCurrentConversation]

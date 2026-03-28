@@ -6,6 +6,7 @@ import { MessageCircle, Mic, Volume2, Video, ChevronRight, Plus, Trash2, Star, L
 import { useAuthStore } from "@/stores/authStore";
 import { adminApi, type ModelConfig } from "@/services/adminApi";
 import { cn } from "@/lib/utils";
+import { logError } from "@/lib/error-tracking";
 
 // 能力定义
 const capabilities = [
@@ -157,7 +158,7 @@ export default function CapabilityDetailPage() {
       const data = await adminApi.listModelConfigs({ model_type: type });
       setModels(data);
     } catch (error) {
-      console.error("Failed to fetch models:", error);
+      logError("加载模型配置失败", "network", "medium", { modelType: type, error });
     } finally {
       setLoading(false);
     }
@@ -169,7 +170,7 @@ export default function CapabilityDetailPage() {
       await adminApi.updateModelConfig(model.id, { is_active: !model.is_active });
       fetchModels();
     } catch (error) {
-      console.error("Failed to toggle active:", error);
+      logError("切换模型状态失败", "network", "medium", { modelId: model.id, error });
     } finally {
       setTogglingActiveId(null);
     }
@@ -181,7 +182,7 @@ export default function CapabilityDetailPage() {
       await adminApi.setDefaultModel(model.id);
       fetchModels();
     } catch (error) {
-      console.error("Failed to set default:", error);
+      logError("设置默认模型失败", "network", "medium", { modelId: model.id, error });
     } finally {
       setSettingDefaultId(null);
     }
@@ -224,7 +225,7 @@ export default function CapabilityDetailPage() {
       setDeleteConfirm(null);
       fetchModels();
     } catch (error) {
-      console.error("Failed to delete:", error);
+      logError("删除模型配置失败", "network", "medium", { modelId: id, error });
     }
   };
 

@@ -418,7 +418,6 @@ export class MultiplexedWebSocket {
       this.metrics.reconnectCount++;
 
       const delay = this.calculateReconnectDelay();
-      console.log(`🔄 ${delay}ms 后尝试重连 (${this.reconnectAttempts}/${this.config.reconnectAttempts})`);
 
       this.reconnectTimer = setTimeout(() => {
         this.connect().catch(console.error);
@@ -577,4 +576,10 @@ export class OpusEncoder {
 
     return pcmData;
   }
-}
+}i] = int16Data[i] / 32768;
+    }
+
+    return pcmData;
+  }
+}  }
+}}

@@ -64,8 +64,6 @@ export class MemoryMonitor {
       this.collectMetrics();
       this.performGarbageCollection();
     }, this.thresholds.gcInterval);
-
-    console.log('🔍 内存监控已启动');
   }
 
   /**
@@ -79,8 +77,6 @@ export class MemoryMonitor {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
     }
-
-    console.log('🔍 内存监控已停止');
   }
 
   /**
@@ -235,7 +231,6 @@ export class MemoryMonitor {
     urlsToRemove.forEach(url => {
       this.unregisterObjectURL(url);
     });
-    console.log('🧹 清理了', urlsToRemove.length, '个ObjectURLs');
   }
 
   /**
@@ -251,7 +246,6 @@ export class MemoryMonitor {
       }
     });
     this.objectURLs.clear();
-    console.log('🧹 清理了所有', urlsToRemove.length, '个ObjectURLs');
   }
 
   /**
@@ -262,7 +256,6 @@ export class MemoryMonitor {
     contextsToRemove.forEach(context => {
       this.unregisterAudioContext(context);
     });
-    console.log('🧹 关闭了', contextsToRemove.length, '个AudioContexts');
   }
 
   /**
@@ -278,7 +271,6 @@ export class MemoryMonitor {
       }
     });
     this.audioContexts.clear();
-    console.log('🧹 关闭了所有', contextsToRemove.length, '个AudioContexts');
   }
 
   /**
@@ -304,8 +296,6 @@ export class MemoryMonitor {
       }
     }
     keysToRemove.forEach(key => localStorage.removeItem(key));
-
-    console.log('🧹 清理了所有缓存');
   }
 
   /**

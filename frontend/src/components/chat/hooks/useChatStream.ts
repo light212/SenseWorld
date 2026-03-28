@@ -203,7 +203,6 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
                 }
 
                 if (data.audio_base64) {
-                  console.log("[Audio] received audio chunk, length:", data.audio_base64.length);
                   audioQueueRef.current.push(data.audio_base64);
                   audioChunksForSaveRef.current.push(data.audio_base64);
 
