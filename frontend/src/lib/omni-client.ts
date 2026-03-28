@@ -377,13 +377,9 @@ export class OmniClient {
     this.stopRecording();
 
     if (this.ws) {
+      // state 保持 'disconnecting'，等 onclose 触发后再改为 'idle'
       this.ws.close();
-      this.ws = null;
-      // ws.close() is async; onclose will fire and set state to 'idle'
-      // But since we null the ws, set state immediately
-      this.state = 'idle';
-      this.reconnectAttempts = 0;
-      this.config.onClose?.();
+      // 不设 ws = null，让 onclose 正常触发并检查到 state === 'disconnecting'
     } else {
       this.state = 'idle';
       this.reconnectAttempts = 0;
