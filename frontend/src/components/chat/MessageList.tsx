@@ -99,7 +99,7 @@ export function MessageList({
       {isStreaming && (
         <div className="flex gap-3">
           {/* AI Avatar - 左侧固定 */}
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
             <Bot className="w-4 h-4 text-white" />
           </div>
           
@@ -113,9 +113,9 @@ export function MessageList({
               <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
                   </div>
                   <span className="text-sm text-gray-400">正在思考</span>
                 </div>
@@ -143,9 +143,9 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
       <div
         className={cn(
           "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          isUser 
-            ? "bg-gradient-to-br from-blue-500 to-purple-600" 
-            : "bg-gradient-to-br from-blue-500 to-purple-500"
+          isUser
+            ? "bg-gradient-to-br from-red-600 to-red-800"
+            : "bg-gradient-to-br from-red-500 to-red-700"
         )}
       >
         {isUser ? (
@@ -168,9 +168,9 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
           <div
             className={cn(
               "rounded-2xl px-4 py-2.5",
-              isUser 
-                ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-tr-sm" 
-                : "bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm"
+              isUser
+                ? "bg-gradient-to-r from-red-600 to-red-800 text-white rounded-tr-sm"
+                : "bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm"
             )}
           >
             <p className="whitespace-pre-wrap text-[15px] leading-relaxed break-words">{message.content}</p>
