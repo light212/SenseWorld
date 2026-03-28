@@ -20,7 +20,6 @@ from app.models.model_config import ModelConfig
 from app.models.user import User
 from app.services.alert_service import AlertService
 from app.services.config_service import ConfigService
-from app.services.request_log_service import RequestLogService
 from app.services.system_setting_service import SystemSettingService
 from app.services.terminal_service import TerminalService
 from app.services.usage_service import UsageService
@@ -599,39 +598,17 @@ async def list_request_logs(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> RequestLogPageResponse:
-    """List request logs with filters."""
-    service = RequestLogService(db)
-    start_time = _date_range_start(date_range)
-    result = await service.list_logs(
-        start_time,
-        conversation_id,
-        trace_id,
-        user_id,
-        status,
-        page,
-        page_size,
-    )
-
-    items = [
-        RequestLogResponse(
-            id=str(log.id),
-            trace_id=log.trace_id,
-            conversation_id=log.conversation_id,
-            user_id=log.user_id,
-            request_type=log.request_type,
-            status_code=log.status_code,
-            latency_ms=log.latency_ms,
-            created_at=log.created_at.isoformat(),
-        )
-        for log in result["items"]
-    ]
-
+    """
+    List request logs with filters.
+    Note: Request logging is currently disabled for MVP. Returns empty list.
+    """
+    # MVP 简化：不查库，返回空列表
     return RequestLogPageResponse(
-        items=items,
-        total=result["total"],
-        page=result["page"],
-        page_size=result["page_size"],
-        pages=result["pages"],
+        items=[],
+        total=0,
+        page=page,
+        page_size=page_size,
+        pages=1,
     )
 
 

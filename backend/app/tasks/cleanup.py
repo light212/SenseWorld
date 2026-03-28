@@ -1,5 +1,7 @@
 """
-Scheduled cleanup jobs.
+Scheduled cleanup jobs - MVP 简化版
+
+只清理 usage_logs，request_logs 已不再使用但保留表结构。
 """
 
 from datetime import datetime, timedelta, timezone
@@ -13,7 +15,7 @@ logger = get_logger(__name__)
 
 
 async def cleanup_old_logs(retention_days: int = 90) -> None:
-    """Delete logs older than retention_days."""
+    """Delete usage_logs older than retention_days."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
     async with async_session_maker() as session:
@@ -21,10 +23,7 @@ async def cleanup_old_logs(retention_days: int = 90) -> None:
             text("DELETE FROM usage_logs WHERE created_at < :cutoff"),
             {"cutoff": cutoff},
         )
-        await session.execute(
-            text("DELETE FROM request_logs WHERE created_at < :cutoff"),
-            {"cutoff": cutoff},
-        )
+        # request_logs 已不再写入，但保留表结构以备将来使用
         await session.commit()
 
-    logger.info("Cleaned up logs before %s", cutoff.isoformat())
+    logger.info(f"Cleaned up usage_logs before {cutoff.isoformat()}")

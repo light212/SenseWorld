@@ -17,8 +17,6 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   isUser = false,
   audioUrl: propsAudioUrl,
 }: VoiceMessageBubbleProps) {
-  console.log('[VoiceMessageBubble] Render:', { messageId: messageId?.slice(0,8), isUser, hasPropsUrl: !!propsAudioUrl });
-  
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(propsAudioUrl || null);
@@ -39,16 +37,12 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     const loadFromCache = async () => {
       try {
         const cached = await getAudio(messageId);
-        console.log('[VoiceMessageBubble] IndexedDB result:', messageId.slice(0,8), cached);
-        if (cached && cached.audioChunks && cached.audioChunks.length > 0) {
+        if (cached?.audioChunks?.length) {
           const url = createAudioUrl(cached.audioChunks);
-          console.log('[VoiceMessageBubble] Created audio URL:', url);
           setAudioUrl(url);
-        } else {
-          console.log('[VoiceMessageBubble] No cached audio found');
         }
       } catch (e) {
-        console.warn('[VoiceMessageBubble] Cache load error:', e);
+        // Ignore
       }
     };
     
@@ -137,7 +131,24 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
         setIsPlaying(true);
         currentPlayingAudio = audio;
       } catch (err) {
-        console.error('Audio play failed:', err);
+        // 如果是 blob URL 失效，尝试从 IndexedDB 加载
+        if (audioUrl.startsWith('blob:')) {
+          try {
+            const cached = await getAudio(messageId);
+            if (cached?.audioChunks?.length) {
+              const newUrl = createAudioUrl(cached.audioChunks);
+              setAudioUrl(newUrl);
+              if (audioRef.current) {
+                audioRef.current.src = newUrl;
+                await audioRef.current.play();
+                setIsPlaying(true);
+                currentPlayingAudio = audioRef.current;
+              }
+            }
+          } catch (e) {
+            // Ignore
+          }
+        }
       }
     }
   };

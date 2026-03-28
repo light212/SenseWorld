@@ -148,10 +148,11 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
             isUser={isUser}
           />
         ) : isVoiceMessage && !isUser && message.hasAudio ? (
-          // AI 语音消息 - 从 IndexedDB 加载
+          // AI 语音消息 - 优先使用内存 URL，否则从 IndexedDB 加载
           <VoiceMessageBubble
             messageId={message.id}
             duration={message.audioDuration || 0}
+            audioUrl={message.audioUrl}
             isUser={false}
           />
         ) : (
