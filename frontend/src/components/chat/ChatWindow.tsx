@@ -55,6 +55,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   // Omni PCM 音频串行播放器
   const omniAudioCtxRef = useRef<AudioContext | null>(null);
   const omniNextStartTimeRef = useRef<number>(0);
+  const omniAudioEnabledRef = useRef<boolean>(false);
   const audioQueueRef = useRef<string[]>([]);
   const audioChunksForSaveRef = useRef<string[]>([]); // 用于保存到缓存的音频
   const isPlayingRef = useRef(false);
@@ -376,6 +377,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       // 挂断
       omniClientRef.current?.disconnect();
       omniClientRef.current = null;
+      omniAudioEnabledRef.current = false;
       omniAudioCtxRef.current?.close();
       omniAudioCtxRef.current = null;
       omniNextStartTimeRef.current = 0;
@@ -437,6 +439,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         });
       },
       onAudio: (audioData) => {
+        if (!omniAudioEnabledRef.current) return; // 挂断后不再播放
         // 串行调度 PCM delta，避免叠音
         if (!omniAudioCtxRef.current || omniAudioCtxRef.current.state === 'closed') {
           omniAudioCtxRef.current = new AudioContext({ sampleRate: 24000 });
@@ -457,6 +460,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       },
       onError: () => {
         toast.error('视频通话连接失败');
+        omniAudioEnabledRef.current = false;
         omniAudioCtxRef.current?.close();
         omniAudioCtxRef.current = null;
         omniNextStartTimeRef.current = 0;
@@ -466,6 +470,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         setAiTranscript("");
       },
       onClose: () => {
+        omniAudioEnabledRef.current = false;
         omniAudioCtxRef.current?.close();
         omniAudioCtxRef.current = null;
         omniNextStartTimeRef.current = 0;
@@ -483,6 +488,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
         await client.startCamera(videoElementRef.current);
       }
       omniClientRef.current = client;
+      omniAudioEnabledRef.current = true;
       setIsVideoCallActive(true);
       setVideoCallStatus('connected');
     } catch (err) {
