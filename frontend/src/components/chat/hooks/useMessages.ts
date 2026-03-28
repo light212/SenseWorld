@@ -41,11 +41,6 @@ export function useMessages(
   const setMessages = useConversationStore((s) => s.setMessages);
   const setIsLoadingMessages = useConversationStore((s) => s.setIsLoadingMessages);
 
-  // Debug: 监控 messages 变化
-  useEffect(() => {
-    console.log('[useMessages] messages changed:', messages.length, messages.map(m => ({ id: m.id.slice(0,8), hasUrl: !!m.audioUrl })));
-  }, [messages]);
-
   // 会话消息缓存 - Map<conversationId, Message[]>
   const messagesCacheRef = useRef<Map<string, Message[]>>(new Map());
   
