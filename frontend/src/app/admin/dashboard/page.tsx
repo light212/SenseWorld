@@ -40,17 +40,12 @@ export default function AdminDashboardPage() {
       href: "/admin/ai-config",
     },
     {
-      title: "费用与统计",
-      desc: "查看用量和费用明细",
+      title: "用量统计",
+      desc: "查看 Token 用量和延迟统计",
       icon: BarChart3,
       href: "/admin/billing",
     },
-    {
-      title: "问题排查",
-      desc: "查看请求日志和错误",
-      icon: FileText,
-      href: "/admin/troubleshoot",
-    },
+    // 问题排查已删除
   ];
 
   const systemStatus = [

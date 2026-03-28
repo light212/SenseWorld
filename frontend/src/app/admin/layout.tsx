@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { BarChart3, FileText, LayoutDashboard, LogOut, Menu, Monitor, Settings, Sliders } from "lucide-react";
+import { BarChart3, LayoutDashboard, LogOut, Menu, Settings } from "lucide-react";
 import { useAuthStore, useAuthHydration } from "@/stores/authStore";
-import { AlertBadge } from "@/components/admin/AlertBadge";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +17,7 @@ import {
 const navItems = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "概览" },
   { href: "/admin/ai-config", icon: Settings, label: "AI 配置" },
-  { href: "/admin/billing", icon: BarChart3, label: "费用与统计" },
-  { href: "/admin/troubleshoot", icon: FileText, label: "问题排查" },
+  { href: "/admin/billing", icon: BarChart3, label: "用量统计" },
 ];
 
 const API_BASE_URL =
@@ -180,9 +178,6 @@ export default function AdminLayout({
           <h1 className="ml-4 lg:ml-0 text-lg font-semibold text-gray-900">
             {navItems.find((item) => item.href === pathname)?.label || "管理后台"}
           </h1>
-          <div className="ml-auto">
-            <AlertBadge token={token} />
-          </div>
         </header>
 
         {/* Page content */}

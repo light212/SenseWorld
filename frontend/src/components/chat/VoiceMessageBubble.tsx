@@ -97,7 +97,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
 
   const handleClick = async () => {
     if (!audioUrl) {
-      console.warn('[VoiceMessageBubble] Cannot play: no url');
+      // 无音频时不做任何事
       return;
     }
     

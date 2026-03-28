@@ -50,7 +50,7 @@ export function AudioPlayer({
           setAudioSrc(url);
         }
       } catch (e) {
-        console.warn('Cache load failed:', e);
+        // Ignore cache errors
       }
       if (mounted) setIsLoading(false);
     }
