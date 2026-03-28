@@ -1,106 +1,67 @@
-// API 客户端封装，统一处理错误、加载状态和toast提示
-import { useToast } from "@/components/ui/Toast";
+/**
+ * 统一 API 客户端
+ * 封装 fetch 调用，处理认证、错误等
+ */
 
-interface ApiOptions {
-  showLoading?: boolean;
-  showError?: boolean;
-  showSuccess?: boolean;
-  successMessage?: string;
-  errorMessage?: string;
+import { API_BASE_URL } from './config';
+
+interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  body?: unknown;
+  headers?: Record<string, string>;
+  token?: string;
 }
 
 class ApiClient {
-  private loadingCount = 0;
-  private loadingTimer: NodeJS.Timeout | null = null;
+  private baseUrl: string;
 
-  async request<T>(
-    url: string,
-    options: RequestInit & ApiOptions = {},
-    toast?: ReturnType<typeof useToast>
-  ): Promise<T> {
-    const {
-      showLoading = true,
-      showError = true,
-      showSuccess = false,
-      successMessage = "操作成功",
-      errorMessage = "操作失败",
-      ...fetchOptions
-    } = options;
-
-    // 显示加载状态
-    if (showLoading) {
-      this.showLoading();
-    }
-
-    try {
-      const response = await fetch(url, {
-        ...fetchOptions,
-        headers: {
-          "Content-Type": "application/json",
-          ...fetchOptions.headers,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || errorMessage);
-      }
-
-      // 显示成功提示
-      if (showSuccess && toast) {
-        toast.success(successMessage);
-      }
-
-      return data;
-    } catch (error) {
-      // 显示错误提示
-      if (showError && toast) {
-        toast.error(error instanceof Error ? error.message : errorMessage);
-      }
-
-      // 网络错误处理
-      if (error instanceof TypeError && error.message === "Failed to fetch") {
-        throw new Error("网络连接失败，请检查网络设置");
-      }
-
-      throw error;
-    } finally {
-      // 隐藏加载状态
-      if (showLoading) {
-        this.hideLoading();
-      }
-    }
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
   }
 
-  private showLoading() {
-    this.loadingCount++;
-    if (this.loadingTimer) {
-      clearTimeout(this.loadingTimer);
+  async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    const { method = 'GET', body, headers = {}, token } = options;
+
+    const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
+    
+    const finalHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...headers,
+    };
+
+    if (token) {
+      finalHeaders['Authorization'] = `Bearer ${token}`;
     }
-    this.loadingTimer = setTimeout(() => {
-      // 显示全局加载指示器
-      const loadingEl = document.getElementById("global-loading");
-      if (loadingEl) {
-        loadingEl.style.display = "flex";
-      }
-    }, 300); // 300ms后才显示，避免闪烁
+
+    const response = await fetch(url, {
+      method,
+      headers: finalHeaders,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(error.message || error.detail || `HTTP ${response.status}`);
+    }
+
+    return response.json();
   }
 
-  private hideLoading() {
-    this.loadingCount--;
-    if (this.loadingTimer) {
-      clearTimeout(this.loadingTimer);
-      this.loadingTimer = null;
-    }
-    if (this.loadingCount <= 0) {
-      this.loadingCount = 0;
-      const loadingEl = document.getElementById("global-loading");
-      if (loadingEl) {
-        loadingEl.style.display = "none";
-      }
-    }
+  async get<T>(endpoint: string, token?: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET', token });
+  }
+
+  async post<T>(endpoint: string, body: unknown, token?: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'POST', body, token });
+  }
+
+  async put<T>(endpoint: string, body: unknown, token?: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'PUT', body, token });
+  }
+
+  async delete<T>(endpoint: string, token?: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE', token });
   }
 }
 
-export const apiClient = new ApiClient();
+export const api = new ApiClient(API_BASE_URL);
