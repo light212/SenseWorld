@@ -274,7 +274,6 @@ async def send_message_stream(
 
             # 使用独立的 session 保存 AI 消息（原 session 已在 StreamingResponse 返回后关闭）
             # 保存 AI 消息
-            logger.info(f"[DEBUG] Saving AI message, content_len={len(full_response)}, is_voice={is_voice_input}")
             if not full_response.strip():
                 logger.warning("LLM returned empty response, skipping save")
                 return
@@ -290,7 +289,7 @@ async def send_message_stream(
                     )
                     save_db.add(ai_message)
                     await save_db.commit()
-                    logger.info(f"[DEBUG] Saved AI message: {message_id[:8]}")
+                    logger.info(f"Saved AI msg {message_id[:8]}")
 
                     # 更新会话
                     result = await save_db.execute(
