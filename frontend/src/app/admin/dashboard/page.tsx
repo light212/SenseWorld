@@ -1,74 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, MessageCircle, TrendingUp, ArrowUpRight, ArrowDownRight, Activity, Settings, FileText, BarChart3, ChevronRight } from "lucide-react";
-import { useAuthStore } from "@/stores/authStore";
+import { Users, MessageCircle, TrendingUp, Activity, Settings, FileText, BarChart3, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Stats {
-  total_users: number;
-  total_conversations: number;
-  total_messages: number;
-}
+import { useAdminStats } from "@/hooks/useAdminApi";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const { token } = useAuthStore();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/v1/admin/stats", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch stats:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (token) {
-      fetchStats();
-    }
-  }, [token]);
+  const { data: stats, error, isLoading: loading } = useAdminStats();
 
   const statCards = [
     {
       label: "用户总数",
-      value: stats?.total_users || 0,
+      value: stats?.total_users ?? 0,
       icon: Users,
-      trend: "+12%",
-      trendUp: true,
     },
     {
       label: "会话总数",
-      value: stats?.total_conversations || 0,
+      value: stats?.total_conversations ?? 0,
       icon: MessageCircle,
-      trend: "+8%",
-      trendUp: true,
     },
     {
       label: "消息总数",
-      value: stats?.total_messages || 0,
+      value: stats?.total_messages ?? 0,
       icon: TrendingUp,
-      trend: "+23%",
-      trendUp: true,
     },
     {
       label: "API 调用",
       value: "-",
       icon: Activity,
-      trend: null,
-      trendUp: true,
     },
   ];
 
@@ -102,6 +62,17 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center justify-between p-4 rounded-xl bg-red-50 border border-red-100">
+          <p className="text-red-600 text-sm">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-sm text-red-600 font-medium hover:text-red-700 underline cursor-pointer"
+          >
+            重试
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">概览</h1>
@@ -117,15 +88,6 @@ export default function AdminDashboardPage() {
           >
             <div className="flex items-center justify-between mb-3">
               <stat.icon className="w-5 h-5 text-gray-400" />
-              {stat.trend && (
-                <span className={cn(
-                  "flex items-center gap-0.5 text-xs font-medium",
-                  stat.trendUp ? "text-green-600" : "text-red-500"
-                )}>
-                  {stat.trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                  {stat.trend}
-                </span>
-              )}
             </div>
             <div className="text-2xl font-bold text-gray-900">
               {loading ? (
@@ -172,10 +134,13 @@ export default function AdminDashboardPage() {
             <div key={item.label} className="flex items-center justify-between px-5 py-3">
               <span className="text-gray-600">{item.label}</span>
               <div className="flex items-center gap-2">
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  item.ok ? "bg-green-500" : "bg-gray-300"
-                )} />
+                <div
+                  className={cn(
+                    "w-2 h-2 rounded-full",
+                    item.ok ? "bg-green-500" : "bg-gray-300"
+                  )}
+                  aria-label={item.ok ? "正常" : "异常"}
+                />
                 <span className={cn(
                   "text-sm",
                   item.ok ? "text-gray-600" : "text-gray-400"

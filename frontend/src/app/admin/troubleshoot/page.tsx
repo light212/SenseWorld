@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { Search, AlertCircle, CheckCircle, X, RefreshCw, ChevronDown, FileText, Filter } from "lucide-react";
-import { adminApi, type RequestLog, type RequestLogDetail, type LatencyStats } from "@/services/adminApi";
-import { useAuthStore } from "@/stores/authStore";
+import { adminApi, type RequestLog, type RequestLogDetail } from "@/services/adminApi";
 import { cn } from "@/lib/utils";
+import { useAdminLogs, useAdminLatencyStats } from "@/hooks/useAdminApi";
 
 const DATE_RANGE_OPTIONS = [
   { value: "today", label: "今天" },
@@ -26,66 +26,36 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function TroubleshootPage() {
-  const { token } = useAuthStore();
-  const [logs, setLogs] = useState<RequestLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedLog, setSelectedLog] = useState<RequestLogDetail | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-
   const [dateRange, setDateRange] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
 
-  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
-  const [stats, setStats] = useState<LatencyStats | null>(null);
+  const { data: logsData, isLoading: loading, error: logsError, mutate: mutateLogs } = useAdminLogs({ dateRange, searchQuery, status, page });
+  const { data: stats, mutate: mutateStats } = useAdminLatencyStats(dateRange);
 
-  const fetchLogs = useCallback(async (page = 1) => {
-    if (!token) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await adminApi.listRequestLogs({
-        date_range: dateRange,
-        conversation_id: searchQuery || undefined,
-        status: status || undefined,
-        page,
-        page_size: 20,
-      });
-      setLogs(data.items);
-      setPagination({ page: data.page, pages: data.pages, total: data.total });
-    } catch {
-      setError("加载日志失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [token, dateRange, searchQuery, status]);
-
-  const fetchStats = useCallback(async () => {
-    if (!token) return;
-    try {
-      const data = await adminApi.getLatencyStats({ date_range: dateRange });
-      setStats(data);
-    } catch {}
-  }, [token, dateRange]);
-
-  useEffect(() => {
-    adminApi.setToken(token || null);
-    if (token) {
-      fetchLogs(1);
-      fetchStats();
-    } else {
-      setLoading(false);
-    }
-  }, [token, fetchLogs, fetchStats]);
+  const logs = logsData?.items ?? [];
+  const pagination = logsData ? { page: logsData.page, pages: logsData.pages, total: logsData.total } : { page: 1, pages: 1, total: 0 };
+  const error = logsError ? "加载日志失败" : null;
 
   const openDetail = async (log: RequestLog) => {
     try {
       const detail = await adminApi.getRequestLog(log.id);
       setSelectedLog(detail);
     } catch {
-      setError("加载详情失败");
+      // ignore
     }
+  };
+
+  const handleRefresh = () => {
+    mutateLogs();
+    mutateStats();
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
   };
 
   const formatLatency = (ms: number) => {
@@ -102,7 +72,7 @@ export default function TroubleshootPage() {
           <p className="text-gray-500 mt-1">查看对话记录，定位和解决问题</p>
         </div>
         <button 
-          onClick={() => { fetchLogs(1); fetchStats(); }} 
+          onClick={handleRefresh} 
           disabled={loading} 
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
         >
@@ -151,13 +121,13 @@ export default function TroubleshootPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && fetchLogs(1)}
+              onKeyDown={(e) => e.key === "Enter" && mutateLogs()}
               placeholder="搜索对话 ID 或 Trace ID"
               className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <button 
-            onClick={() => fetchLogs(1)} 
+            onClick={() => mutateLogs()} 
             disabled={loading} 
             className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
           >
@@ -208,7 +178,7 @@ export default function TroubleshootPage() {
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span className="text-sm">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto"><X className="w-4 h-4" /></button>
+          <button onClick={() => mutateLogs()} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -270,7 +240,7 @@ export default function TroubleshootPage() {
           <span className="text-gray-500">共 {pagination.total} 条记录</span>
           <div className="flex gap-2">
             <button
-              onClick={() => fetchLogs(pagination.page - 1)}
+              onClick={() => handlePageChange(pagination.page - 1)}
               disabled={pagination.page <= 1 || loading}
               className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
             >
@@ -278,7 +248,7 @@ export default function TroubleshootPage() {
             </button>
             <span className="px-3 py-1.5 text-gray-600">{pagination.page} / {pagination.pages}</span>
             <button
-              onClick={() => fetchLogs(pagination.page + 1)}
+              onClick={() => handlePageChange(pagination.page + 1)}
               disabled={pagination.page >= pagination.pages || loading}
               className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
             >

@@ -256,11 +256,11 @@ export default function CapabilityDetailPage() {
     setModalStep("form");
     setModalProvider(model.provider);
     setModalModel(model.model_name);
-    setModalApiKey(model.config?.api_key || "");
-    setModalBaseUrl(model.config?.base_url || "");
-    setModalProtocol(model.config?.protocol || "openai_compatible");
+    setModalApiKey((model.config?.api_key as string) || "");
+    setModalBaseUrl((model.config?.base_url as string) || "");
+    setModalProtocol((model.config?.protocol as string) || "openai_compatible");
     setModalTerminalType(model.terminal_type || "web");
-    setModalVoice(model.config?.voice || "Cherry");
+    setModalVoice((model.config?.voice as string) || "Cherry");
     setModalError("");
   };
 

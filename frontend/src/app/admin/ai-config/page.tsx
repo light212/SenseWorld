@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageCircle, Mic, Volume2, Video, ChevronRight, AlertCircle } from "lucide-react";
-import { useAuthStore } from "@/stores/authStore";
-import { adminApi, type ModelConfig } from "@/services/adminApi";
 import { cn } from "@/lib/utils";
+import { useAdminModels } from "@/hooks/useAdminApi";
 
 // 能力定义
 const capabilities = [
@@ -37,29 +35,7 @@ const capabilities = [
 
 export default function AIConfigPage() {
   const router = useRouter();
-  const { token } = useAuthStore();
-  const [models, setModels] = useState<ModelConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    adminApi.setToken(token || null);
-    if (token) {
-      fetchModels();
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
-
-  const fetchModels = async () => {
-    try {
-      const data = await adminApi.listModelConfigs();
-      setModels(data);
-    } catch (error) {
-      console.error("Failed to fetch models:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: models = [], isLoading: loading } = useAdminModels();
 
   const getModelsByType = (type: string) => {
     return models.filter(m => m.model_type === type);
