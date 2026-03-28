@@ -36,7 +36,9 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     
     const loadFromCache = async () => {
       try {
+        console.log('[VoiceMessageBubble] Loading from IndexedDB, key:', messageId?.slice(0, 8), 'isUser:', isUser);
         const cached = await getAudio(messageId);
+        console.log('[VoiceMessageBubble] IndexedDB result:', cached ? `${cached.audioChunks?.length} chunks` : 'null');
         if (cached?.audioChunks?.length) {
           const url = createAudioUrl(cached.audioChunks);
           setAudioUrl(url);

@@ -114,6 +114,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       if (!activeConversationId) return;
 
       const messageId = crypto.randomUUID();
+      console.log('[UserVoice] Creating user message:', messageId.slice(0, 8));
 
       // 立即创建并显示用户语音消息
       const audioUrl = URL.createObjectURL(blob);
@@ -135,6 +136,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       addMessage(userMessage);
 
       // 后台异步保存用户语音
+      console.log('[UserVoice] Saving to IndexedDB with key:', messageId.slice(0, 8));
       saveUserAudioBlob(messageId, blob).catch(() => {});
 
       // 发送流式聊天请求

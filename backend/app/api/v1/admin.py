@@ -134,7 +134,9 @@ class UsageSummaryResponse(BaseModel):
     total_calls: int
     total_input_tokens: int
     total_output_tokens: int
-    total_cost: float
+    total_tokens: int
+    avg_latency_ms: float
+    success_rate: float
     by_model_type: dict
 
 
@@ -143,16 +145,19 @@ class UsageTrendPoint(BaseModel):
     calls: int
     input_tokens: int
     output_tokens: int
-    cost: float
+    total_tokens: int
+    avg_latency_ms: float
 
 
 class ModelUsageStats(BaseModel):
     model_type: str
     model_name: str
+    provider: str
     calls: int
     input_tokens: int
     output_tokens: int
-    cost: float
+    total_tokens: int
+    avg_latency_ms: float
     percentage: float
 
 

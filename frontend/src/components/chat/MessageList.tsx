@@ -116,7 +116,18 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
       id: message.id?.slice(0, 8),
       hasAudio: message.hasAudio,
       inputType: message.metadata?.inputType,
-      isVoiceMessage
+      isVoiceMessage,
+      audioUrl: message.audioUrl?.slice(0, 30)
+    });
+  }
+  
+  if (isUser && message.hasAudio) {
+    console.log('[MessageItem] User voice message:', {
+      id: message.id?.slice(0, 8),
+      hasAudio: message.hasAudio,
+      inputType: message.metadata?.inputType,
+      isVoiceMessage,
+      audioUrl: message.audioUrl?.slice(0, 30)
     });
   }
 

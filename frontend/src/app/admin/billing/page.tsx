@@ -28,7 +28,9 @@ export default function BillingPage() {
     <div className="space-y-6">
       {error && (
         <div className="p-4 rounded-xl bg-red-50 border border-red-100">
-          <p className="text-red-600 text-sm">{error}</p>
+          <p className="text-red-600 text-sm">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
         </div>
       )}
 

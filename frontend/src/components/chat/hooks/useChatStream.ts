@@ -236,6 +236,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         let inMemoryAudioUrl: string | undefined;
         
         if (hasAudioChunks) {
+          console.log('[AIVoice] Saving to IndexedDB with key:', finalMessageId.slice(0, 8));
           inMemoryAudioUrl = createAudioUrl(audioChunksForSaveRef.current);
           saveAudio(finalMessageId, audioChunksForSaveRef.current).catch(console.error);
           audioChunksForSaveRef.current = [];
