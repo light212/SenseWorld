@@ -245,12 +245,13 @@ async def send_message_stream(
                 full_response += chunk
                 sentence_buffer += chunk
 
-                # 立即发送文本片段
-                yield f"event: text\ndata: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
+                # 文字输入：发送文本片段
+                # 语音输入：不发送文本，只收集用于 TTS
+                if not is_voice_input:
+                    yield f"event: text\ndata: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
 
-                # 只有语音输入才生成 TTS
+                # 检测句子边界（语音输入才需要 TTS）
                 if is_voice_input:
-                    # 检测句子边界
                     sentence_enders = ['。', '？', '！', '；', '.', '?', '!', ';']
                     for ender in sentence_enders:
                         if ender in sentence_buffer:
