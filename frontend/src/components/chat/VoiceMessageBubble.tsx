@@ -134,7 +134,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
         "max-w-[240px]",
         "px-4 py-3",
         isUser
-          ? "bg-gradient-to-r from-blue-500 to-purple-600 rounded-tr-sm"
+          ? "bg-gradient-to-r from-red-600 to-red-800 rounded-tr-sm"
           : "bg-white border border-gray-200 shadow-sm rounded-tl-sm",
         className
       )}

@@ -15,8 +15,8 @@ export function EmptyState({ onMicClick, onVideoClick }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-8 bg-gray-50">
       {/* 主图标 */}
-      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mb-6">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center mb-6">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center">
           <Mic className="w-8 h-8 text-white" />
         </div>
       </div>
@@ -37,7 +37,7 @@ export function EmptyState({ onMicClick, onVideoClick }: EmptyStateProps) {
           {onMicClick && (
             <button
               onClick={onMicClick}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
             >
               <Mic className="w-5 h-5" />
               语音对话
