@@ -95,33 +95,6 @@ export function MessageList({
         <MessageItem key={message.id} message={message} />
       ))}
 
-      {/* Streaming message */}
-      {isStreaming && (
-        <div className="flex gap-3">
-          {/* AI Avatar - 左侧固定 */}
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-            <Bot className="w-4 h-4 text-white" />
-          </div>
-          
-          {/* 消息内容 */}
-          <div className="flex-1 max-w-[70%]">
-            {streamingContent ? (
-              <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm p-3 shadow-sm">
-                <p className="whitespace-pre-wrap text-gray-800 text-[15px] leading-relaxed">{streamingContent}</p>
-              </div>
-            ) : (
-              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm inline-flex">
-                <div className="flex items-center gap-[5px]">
-                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
@@ -133,6 +106,7 @@ interface MessageItemProps {
 const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user";
   const isVoiceMessage = message.metadata?.inputType === "voice";
+  const isLoading = !isUser && !message.content;
 
   return (
     <div className={cn("flex items-end gap-3", isUser && "flex-row-reverse")}>
@@ -154,8 +128,16 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
 
       {/* Content - 固定最大宽度 70% */}
       <div className="max-w-[70%]">
-        {/* 消息气泡 */}
-        {isVoiceMessage && isUser ? (
+        {/* 加载状态 */}
+        {isLoading ? (
+          <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm inline-flex">
+            <div className="flex items-center gap-[5px]">
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        ) : isVoiceMessage && isUser ? (
           <VoiceMessageBubble
             messageId={message.id}
             duration={message.audioDuration || 0}
