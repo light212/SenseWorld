@@ -27,7 +27,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
 
   // 如果没有 propsAudioUrl，尝试从缓存加载
   useEffect(() => {
-    if (propsAudioUrl) {
+    if (propsAudioUrl && propsAudioUrl.length > 0) {
       setAudioUrl(propsAudioUrl);
       return;
     }
@@ -78,7 +78,19 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
 
   const handleClick = async () => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
+    
+    // Debug
+    console.log('[VoiceMessageBubble] handleClick:', { 
+      hasAudio: !!audio, 
+      hasUrl: !!audioUrl, 
+      audioUrl,
+      propsAudioUrl 
+    });
+    
+    if (!audio || !audioUrl) {
+      console.warn('[VoiceMessageBubble] Cannot play: no audio or url');
+      return;
+    }
 
     if (isPlaying) {
       // 当前正在播放，暂停

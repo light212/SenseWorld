@@ -253,7 +253,6 @@ export class ProfessionalAudioEngine {
   private startPlayback(): void {
     if (!this.isPlaying) {
       this.isPlaying = true;
-      console.log('🎵 开始音频播放');
     }
   }
 
@@ -262,7 +261,6 @@ export class ProfessionalAudioEngine {
    */
   pause(): void {
     this.isPlaying = false;
-    console.log('⏸️ 音频播放暂停');
   }
 
   /**
@@ -273,7 +271,6 @@ export class ProfessionalAudioEngine {
       this.audioContext.resume();
     }
     this.isPlaying = true;
-    console.log('▶️ 音频播放恢复');
   }
 
   /**
@@ -283,7 +280,6 @@ export class ProfessionalAudioEngine {
     this.isPlaying = false;
     this.circularBuffer.clear();
     this.currentTime = 0;
-    console.log('⏹️ 音频播放停止');
   }
 
   /**

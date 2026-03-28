@@ -93,7 +93,6 @@ export class OmniClient {
       };
 
       this.ws.onclose = () => {
-        console.log(`[OmniClient] Disconnected (state=${this.state})`);
         const prevState = this.state;
 
         if (prevState === 'disconnecting') {
@@ -109,7 +108,6 @@ export class OmniClient {
           this.state = 'reconnecting';
           this.reconnectAttempts++;
           const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 10000);
-          console.log(`[OmniClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
           this.reconnectTimeoutId = setTimeout(async () => {
             try {
               await this.connect();

@@ -236,7 +236,6 @@ export class MultiplexedWebSocket {
         this.ws.binaryType = 'arraybuffer';
 
         this.ws.onopen = () => {
-          console.log('🔗 WebSocket连接已建立');
           this.isConnected = true;
           this.reconnectAttempts = 0;
           this.startMetricsCollection();
@@ -249,7 +248,6 @@ export class MultiplexedWebSocket {
         };
 
         this.ws.onclose = (event) => {
-          console.log('🔌 WebSocket连接已关闭:', event.code, event.reason);
           this.isConnected = false;
           this.stopMetricsCollection();
           this.handleReconnection();
@@ -416,7 +414,6 @@ export class MultiplexedWebSocket {
       this.metrics.reconnectCount++;
 
       const delay = this.calculateReconnectDelay();
-      console.log(`🔄 ${delay}ms 后尝试重连 (${this.reconnectAttempts}/${this.config.reconnectAttempts})`);
 
       this.reconnectTimer = setTimeout(() => {
         this.connect().catch(console.error);
