@@ -218,9 +218,9 @@ async def send_message_stream(
         conversation_id = data.conversation_id
         _usage = [0, 0]  # [input_tokens, output_tokens]
         
-        # TTS 并行任务队列
+        # TTS 并行任务队列（仅语音输入时使用）
         tts_tasks: list = []
-        tts_queue: list = []  # 待合成的句子队列
+        is_voice_input = data.input_type == "voice"
 
         def _on_usage(inp: int, out: int) -> None:
             _usage[0] = inp
@@ -245,25 +245,27 @@ async def send_message_stream(
                 full_response += chunk
                 sentence_buffer += chunk
 
-                # 立即发送文本片段（不等 TTS）
+                # 立即发送文本片段
                 yield f"event: text\ndata: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
 
-                # 检测句子边界
-                sentence_enders = ['。', '？', '！', '；', '.', '?', '!', ';']
-                for ender in sentence_enders:
-                    if ender in sentence_buffer:
-                        idx = sentence_buffer.index(ender) + 1
-                        sentence = sentence_buffer[:idx]
-                        sentence_buffer = sentence_buffer[idx:]
-                        # 启动后台 TTS 任务
-                        tts_tasks.append(asyncio.create_task(synthesize_and_send(sentence)))
-                        break
+                # 只有语音输入才生成 TTS
+                if is_voice_input:
+                    # 检测句子边界
+                    sentence_enders = ['。', '？', '！', '；', '.', '?', '!', ';']
+                    for ender in sentence_enders:
+                        if ender in sentence_buffer:
+                            idx = sentence_buffer.index(ender) + 1
+                            sentence = sentence_buffer[:idx]
+                            sentence_buffer = sentence_buffer[idx:]
+                            # 启动后台 TTS 任务
+                            tts_tasks.append(asyncio.create_task(synthesize_and_send(sentence)))
+                            break
 
-            # 处理剩余文本
-            if sentence_buffer.strip():
+            # 处理剩余文本（仅语音输入）
+            if is_voice_input and sentence_buffer.strip():
                 tts_tasks.append(asyncio.create_task(synthesize_and_send(sentence_buffer)))
 
-            # 等待所有 TTS 任务完成并发送音频
+            # 等待所有 TTS 任务完成并发送音频（仅语音输入）
             if tts_tasks:
                 results = await asyncio.gather(*tts_tasks)
                 for result in results:
@@ -282,7 +284,7 @@ async def send_message_stream(
                         conversation_id=conversation_id,
                         role="assistant",
                         content=full_response,
-                        has_audio=True,
+                        has_audio=is_voice_input,
                         extra_data={},
                     )
                     save_db.add(ai_message)
