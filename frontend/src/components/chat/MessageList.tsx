@@ -109,27 +109,6 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   const isVoiceMessage = message.metadata?.inputType === "voice";
   // 加载状态：没有内容且没有音频
   const isLoading = !isUser && !message.content && !message.hasAudio;
-  
-  // Debug
-  if (!isUser && message.hasAudio) {
-    console.log('[MessageItem] AI voice message:', {
-      id: message.id?.slice(0, 8),
-      hasAudio: message.hasAudio,
-      inputType: message.metadata?.inputType,
-      isVoiceMessage,
-      audioUrl: message.audioUrl?.slice(0, 30)
-    });
-  }
-  
-  if (isUser && message.hasAudio) {
-    console.log('[MessageItem] User voice message:', {
-      id: message.id?.slice(0, 8),
-      hasAudio: message.hasAudio,
-      inputType: message.metadata?.inputType,
-      isVoiceMessage,
-      audioUrl: message.audioUrl?.slice(0, 30)
-    });
-  }
 
   return (
     <div className={cn("flex items-end gap-3", isUser && "flex-row-reverse")}>

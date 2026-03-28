@@ -30,7 +30,7 @@ export interface UseChatStreamReturn {
   /** 是否正在流式传输 */
   isStreaming: boolean;
   /** 发送消息 */
-  sendMessage: (content: string, inputType: "text" | "voice", messageId?: string, audioDuration?: number) => Promise<void>;
+  sendMessage: (content: string, inputType: "text" | "voice", userMessageId?: string, aiMessageId?: string, audioDuration?: number) => Promise<void>;
   /** 中止当前流式请求 */
   abortStream: () => void;
 }
@@ -102,7 +102,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
   // 流式聊天
   const sendMessage = useCallback(
-    async (content: string, inputType: "text" | "voice", messageId?: string, audioDuration?: number) => {
+    async (content: string, inputType: "text" | "voice", userMessageId?: string, aiMessageId?: string, audioDuration?: number) => {
       const currentToken = tokenRef.current;
       const currentConvId = conversationIdRef.current;
 
@@ -115,8 +115,8 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       const abortController = new AbortController();
       streamAbortRef.current = abortController;
 
-      // 生成消息 ID
-      const finalMessageId = onBeforeSend?.(content, inputType) ?? crypto.randomUUID();
+      // AI 消息 ID（如果没传就生成新的）
+      const finalMessageId = aiMessageId ?? crypto.randomUUID();
 
       // 创建占位消息
       const placeholderMessage: Message = {
@@ -137,7 +137,6 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       audioChunksForSaveRef.current = [];
 
       let fullContent = "";
-      let aiMessageId = "";
       let hasReceivedFirstAudio = false;
 
       try {
@@ -152,7 +151,8 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
             conversation_id: currentConvId,
             content,
             input_type: inputType,
-            message_id: finalMessageId,  // AI 消息 ID
+            user_message_id: userMessageId,  // 用户消息 ID
+            ai_message_id: finalMessageId,   // AI 消息 ID
             audio_duration: audioDuration,
           }),
         });
@@ -236,7 +236,6 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         let inMemoryAudioUrl: string | undefined;
         
         if (hasAudioChunks) {
-          console.log('[AIVoice] Saving to IndexedDB with key:', finalMessageId.slice(0, 8));
           inMemoryAudioUrl = createAudioUrl(audioChunksForSaveRef.current);
           saveAudio(finalMessageId, audioChunksForSaveRef.current).catch(console.error);
           audioChunksForSaveRef.current = [];

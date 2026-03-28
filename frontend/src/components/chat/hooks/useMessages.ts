@@ -96,15 +96,6 @@ export function useMessages(
 
         if (response.ok) {
           const data = await response.json();
-          // Debug: 检查加载的消息
-          if (data.items) {
-            console.log('[useMessages] API response:', data.items.slice(0, 2).map((m: any) => ({
-              id: m.id?.slice(0, 8),
-              role: m.role,
-              has_audio: m.has_audio,
-              input_type: m.extra_data?.input_type
-            })));
-          }
           if (data.items && data.items.length > 0) {
             const loadedMessages: Message[] = data.items.map((m: any) => ({
               id: m.id,

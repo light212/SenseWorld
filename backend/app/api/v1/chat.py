@@ -33,7 +33,8 @@ class ChatRequest(BaseModel):
     conversation_id: str
     content: str
     input_type: str = "text"  # "text" or "voice"
-    message_id: str | None = None  # 前端生成的消息 ID（可选）
+    user_message_id: str | None = None  # 用户消息 ID（用于 IndexedDB 匹配）
+    ai_message_id: str | None = None  # AI 消息 ID（前端预生成的 AI 消息 ID）
     audio_duration: int | None = None  # 语音时长（毫秒）
 
 
@@ -180,7 +181,7 @@ async def send_message_stream(
 
     # Save user message (流式接口需要显式提交，因为 StreamingResponse 返回后 session 会关闭)
     user_message = Message(
-        id=data.message_id or str(uuid.uuid4()),  # 使用前端传入的 ID 或生成新的
+        id=data.user_message_id or str(uuid.uuid4()),  # 用户消息 ID
         conversation_id=data.conversation_id,
         role="user",
         content=data.content,
@@ -214,7 +215,7 @@ async def send_message_stream(
     async def generate_stream():
         full_response = ""
         sentence_buffer = ""
-        message_id = data.message_id or str(uuid.uuid4())  # 使用前端传的 ID
+        message_id = data.ai_message_id or str(uuid.uuid4())  # AI 消息 ID
         conversation_id = data.conversation_id
         _usage = [0, 0]  # [input_tokens, output_tokens]
         

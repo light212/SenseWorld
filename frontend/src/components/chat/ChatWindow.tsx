@@ -113,15 +113,15 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     (blob: Blob, duration: number, confirmedText: string) => {
       if (!activeConversationId) return;
 
-      const messageId = crypto.randomUUID();
-      console.log('[UserVoice] Creating user message:', messageId.slice(0, 8));
+      const userMessageId = crypto.randomUUID();
+      const aiMessageId = crypto.randomUUID();
 
       // 立即创建并显示用户语音消息
       const audioUrl = URL.createObjectURL(blob);
       memoryMonitor.registerObjectURL(audioUrl);
 
       const userMessage: Message = {
-        id: messageId,
+        id: userMessageId,
         conversationId: activeConversationId,
         role: "user",
         content: confirmedText || "语音消息",
@@ -135,12 +135,11 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       };
       addMessage(userMessage);
 
-      // 后台异步保存用户语音
-      console.log('[UserVoice] Saving to IndexedDB with key:', messageId.slice(0, 8));
-      saveUserAudioBlob(messageId, blob).catch(() => {});
+      // 保存用户语音到 IndexedDB（用 userMessageId）
+      saveUserAudioBlob(userMessageId, blob).catch(() => {});
 
-      // 发送流式聊天请求
-      sendMessage(confirmedText, "voice", messageId, duration).catch(console.error);
+      // 发送流式聊天请求（传递 userMessageId 和 aiMessageId）
+      sendMessage(confirmedText, "voice", userMessageId, aiMessageId, duration).catch(console.error);
     },
     [activeConversationId, addMessage, sendMessage]
   );

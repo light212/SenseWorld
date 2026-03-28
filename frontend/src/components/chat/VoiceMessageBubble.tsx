@@ -17,12 +17,6 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   isUser = false,
   audioUrl: propsAudioUrl,
 }: VoiceMessageBubbleProps) {
-  console.log('[VoiceMessageBubble] Props:', { 
-    messageId: messageId?.slice(0,8), 
-    isUser, 
-    propsAudioUrl: propsAudioUrl?.slice(0, 40) 
-  });
-  
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(propsAudioUrl || null);
@@ -33,13 +27,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
 
   // 如果没有 propsAudioUrl，尝试从缓存加载
   useEffect(() => {
-    console.log('[VoiceMessageBubble] useEffect:', { 
-      propsAudioUrl: propsAudioUrl?.slice(0, 40), 
-      messageId: messageId?.slice(0,8) 
-    });
-    
     if (propsAudioUrl) {
-      console.log('[VoiceMessageBubble] Setting audioUrl from props');
       setAudioUrl(propsAudioUrl);
       return;
     }
@@ -48,16 +36,13 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     
     const loadFromCache = async () => {
       try {
-        console.log('[VoiceMessageBubble] Loading from IndexedDB...');
         const cached = await getAudio(messageId);
-        console.log('[VoiceMessageBubble] IndexedDB result:', cached ? `${cached.audioChunks?.length} chunks` : 'null');
         if (cached?.audioChunks?.length) {
           const url = createAudioUrl(cached.audioChunks);
-          console.log('[VoiceMessageBubble] Created URL:', url.slice(0, 40));
           setAudioUrl(url);
         }
       } catch (e) {
-        console.error('[VoiceMessageBubble] Load error:', e);
+        // Ignore
       }
     };
     
@@ -65,15 +50,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   }, [messageId, propsAudioUrl]);
 
   const handleClick = async () => {
-    console.log('[VoiceMessageBubble] Click:', { 
-      audioUrl: audioUrl?.slice(0, 40), 
-      isPlaying 
-    });
-    
-    if (!audioUrl) {
-      console.warn('[VoiceMessageBubble] No audio URL!');
-      return;
-    }
+    if (!audioUrl) return;
     
     // 停止其他正在播放的音频
     if (currentPlayingAudio && currentPlayingAudio !== audioRef.current) {
