@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { Plus, MessageCircle, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, MessageCircle, Trash2, AlertTriangle, Search } from "lucide-react";
 import type { Conversation } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -30,6 +30,7 @@ export function ConversationList({
 }: ConversationListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleDelete = useCallback(
     (id: string, e: React.MouseEvent) => {
@@ -51,6 +52,10 @@ export function ConversationList({
       setDeletingId(null);
     }
   }, [confirmId, onDelete]);
+
+  const filteredConversations = conversations.filter((c) =>
+    (c.title ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
@@ -95,11 +100,23 @@ export function ConversationList({
       {/* New conversation button */}
       <button
         onClick={onCreate}
-        className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:opacity-90 mb-4 transition-opacity font-medium"
+        className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-xl hover:opacity-90 mb-4 transition-opacity font-medium"
       >
         <Plus className="w-5 h-5" />
         新对话
       </button>
+
+      {/* Search box */}
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="搜索对话..."
+          className="w-full pl-9 pr-3 py-2 text-sm bg-gray-100 border border-transparent rounded-lg focus:outline-none focus:border-red-300 focus:bg-white transition-colors placeholder-gray-400"
+        />
+      </div>
 
       {/* Conversation list */}
       <div className="flex-1 overflow-y-auto space-y-1">
@@ -113,12 +130,12 @@ export function ConversationList({
               </div>
             </div>
           ))
-        ) : conversations.length === 0 ? (
+        ) : filteredConversations.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-4">
-            暂无对话记录
+            {searchQuery ? "没有匹配的对话" : "暂无对话记录"}
           </p>
         ) : (
-          conversations.map((conversation) => (
+          filteredConversations.map((conversation) => (
             <ConversationItem
               key={conversation.id}
               conversation={conversation}
@@ -149,13 +166,17 @@ function ConversationItem({
   onSelect,
   onDelete,
 }: ConversationItemProps) {
+  const timeLabel = conversation.lastMessageAt
+    ? formatDate(conversation.lastMessageAt)
+    : formatDate(conversation.createdAt);
+
   return (
     <div
       onClick={onSelect}
       className={cn(
         "group flex items-center gap-2 p-3 rounded-xl cursor-pointer transition-colors",
         isSelected
-          ? "bg-gradient-to-r from-blue-50 to-purple-50 text-gray-900 border border-blue-200"
+          ? "border-l-2 border-red-600 bg-red-50 text-gray-900"
           : "text-gray-600 hover:bg-gray-100",
         isDeleting && "opacity-50 pointer-events-none"
       )}
@@ -164,7 +185,7 @@ function ConversationItem({
       <div
         className={cn(
           "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          isSelected ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white" : "bg-gray-100 text-gray-400"
+          isSelected ? "bg-red-600 text-white" : "bg-gray-100 text-gray-400"
         )}
       >
         <MessageCircle className="w-4 h-4" />
@@ -172,26 +193,19 @@ function ConversationItem({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm font-medium truncate", isSelected && "text-gray-900")}>
-          {conversation.title || "新对话"}
-        </p>
-        <p className="text-xs text-gray-400 truncate">
-          {conversation.lastMessageAt
-            ? formatDate(conversation.lastMessageAt)
-            : formatDate(conversation.createdAt)}
+        <div className="flex items-center justify-between gap-1">
+          <p className={cn("text-sm font-medium truncate", isSelected && "text-gray-900")}>
+            {conversation.title || "新对话"}
+          </p>
+          <span className="flex-shrink-0 text-xs text-gray-400">{timeLabel}</span>
+        </div>
+        <p className="text-xs text-gray-400 truncate mt-0.5">
+          {/* Conversation type has no lastMessage field; show empty preview */}
+          {""}
         </p>
       </div>
 
-      {/* Message count badge */}
-      {conversation.messageCount > 0 && (
-        <span className={cn("flex-shrink-0 text-xs px-2 py-0.5 rounded-full", 
-          isSelected ? "bg-blue-100 text-blue-600" : "text-gray-400 bg-gray-100"
-        )}>
-          {conversation.messageCount}
-        </span>
-      )}
-
-      {/* Delete button */}
+      {/* Delete button — hover only */}
       <button
         onClick={onDelete}
         className={cn(
