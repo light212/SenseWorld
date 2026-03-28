@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Square } from "lucide-react";
+import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getAudio, createAudioUrl } from "@/lib/audio-cache";
+import { useAuthStore } from "@/stores/authStore";
 
-// 格式化时长
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -12,47 +13,95 @@ function formatDuration(seconds: number): string {
 }
 
 interface AudioPlayerProps {
-  src?: string;
-  autoPlay?: boolean;
+  messageId: string;
+  fallbackSrc?: string;
   className?: string;
 }
 
 export function AudioPlayer({
-  src,
-  autoPlay = false,
+  messageId,
+  fallbackSrc,
   className,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
 
+  // 尝试从缓存加载
   useEffect(() => {
-    if (src) {
-      audioRef.current = new Audio(src);
-      audioRef.current.onloadedmetadata = () => {
-        setDuration(audioRef.current?.duration || 0);
-      };
-      audioRef.current.ontimeupdate = () => {
-        setCurrentTime(audioRef.current?.currentTime || 0);
-      };
-      audioRef.current.onended = () => {
-        setIsPlaying(false);
-        setCurrentTime(0);
-      };
-    }
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
+    let mounted = true;
+    
+    async function loadFromCache() {
+      try {
+        const cached = await getAudio(messageId);
+        if (cached && cached.audioChunks && cached.audioChunks.length > 0 && mounted) {
+          const url = createAudioUrl(cached.audioChunks);
+          setAudioSrc(url);
+        }
+      } catch (e) {
+        console.warn('Cache load failed:', e);
       }
+      if (mounted) setIsLoading(false);
+    }
+    
+    loadFromCache();
+    return () => { mounted = false; };
+  }, [messageId]);
+
+  // 从服务器加载
+  const loadFromServer = async () => {
+    if (!fallbackSrc) return;
+    setIsLoading(true);
+
+    try {
+      const token = useAuthStore.getState().token;
+      const response = await fetch(fallbackSrc, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        if (blob.size > 0) {
+          const url = URL.createObjectURL(blob);
+          setAudioSrc(url);
+          // 自动播放
+          setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.play();
+              setIsPlaying(true);
+            }
+          }, 100);
+        }
+      }
+    } catch (e) {
+      console.error('Server load failed:', e);
+    }
+    setIsLoading(false);
+  };
+
+  // 设置音频元素
+  useEffect(() => {
+    if (!audioSrc) return;
+    
+    const audio = new Audio(audioSrc);
+    audio.onloadedmetadata = () => setDuration(audio.duration || 0);
+    audio.ontimeupdate = () => setCurrentTime(audio.currentTime || 0);
+    audio.onended = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
     };
-  }, [src]);
+    audioRef.current = audio;
+    
+    return () => {
+      audio.pause();
+      URL.revokeObjectURL(audioSrc);
+    };
+  }, [audioSrc]);
 
   const handlePlayPause = () => {
     if (!audioRef.current) return;
-    
     if (isPlaying) {
       audioRef.current.pause();
     } else {
@@ -61,109 +110,64 @@ export function AudioPlayer({
     setIsPlaying(!isPlaying);
   };
 
-  const handleStop = () => {
-    if (!audioRef.current) return;
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
-    setIsPlaying(false);
-    setCurrentTime(0);
-  };
-
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current || !progressRef.current) return;
-    
-    const rect = progressRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const newTime = (clickX / rect.width) * duration;
-    audioRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  if (!src) return null;
+  // 没有音频源 - 显示点击播放
+  if (!audioSrc && !isLoading) {
+    return (
+      <button
+        onClick={loadFromServer}
+        disabled={!fallbackSrc}
+        className={cn(
+          "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
+          "bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors",
+          !fallbackSrc && "cursor-not-allowed opacity-50",
+          className
+        )}
+      >
+        <Play className="w-4 h-4" />
+        <span className="text-xs">点击播放</span>
+      </button>
+    );
+  }
 
+  // 加载中
+  if (isLoading) {
+    return (
+      <div className={cn(
+        "inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100",
+        className
+      )}>
+        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs text-gray-400">加载中...</span>
+      </div>
+    );
+  }
+
+  // 正常播放器
   return (
-    <div
+    <button
+      onClick={handlePlayPause}
       className={cn(
-        "flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 shadow-sm",
+        "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
+        "bg-gray-100 hover:bg-gray-200 transition-colors text-gray-700",
         className
       )}
     >
-      {/* 播放按钮 */}
-      <button
-        onClick={handlePlayPause}
-        className={cn(
-          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
-          "bg-blue-500 text-white",
-          "hover:bg-blue-600 transition-colors",
-          "active:scale-95 transition-transform"
-        )}
-        aria-label={isPlaying ? "暂停" : "播放"}
-      >
-        {isPlaying ? (
-          <Pause className="w-5 h-5" />
-        ) : (
-          <Play className="w-5 h-5 ml-0.5" />
-        )}
-      </button>
-
-      {/* 声波 + 进度条 */}
-      <div className="flex-1 flex flex-col gap-1.5">
-        {/* 声波动画 */}
-        <div className="flex items-center gap-[2px] h-4">
-          {[...Array(20)].map((_, i) => {
-            const dynamicHeight = isPlaying
-              ? 4 + Math.sin(currentTime * 3 + i * 0.5) * 6
-              : 4 + Math.sin(i * 0.4) * 4;
-            return (
-              <div
-                key={i}
-                className={cn(
-                  "w-[2px] rounded-full transition-all duration-75",
-                  i / 20 < progress / 100
-                    ? "bg-blue-500"
-                    : "bg-gray-300"
-                )}
-                style={{ height: `${dynamicHeight}px` }}
-              />
-            );
-          })}
-        </div>
-
-        {/* 进度条（可点击） */}
-        <div
-          ref={progressRef}
-          onClick={handleProgressClick}
-          className="h-1.5 bg-gray-200 rounded-full overflow-hidden cursor-pointer group"
-        >
-          <div
-            className="h-full bg-blue-500 relative transition-all duration-100"
-            style={{ width: `${progress}%` }}
-          >
-            {/* 拖动点 */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </div>
+      <div className={cn(
+        "w-6 h-6 rounded-full flex items-center justify-center",
+        isPlaying ? "bg-blue-500 text-white" : "bg-gray-300 text-gray-600"
+      )}>
+        {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
       </div>
 
-      {/* 时间 */}
-      <div className="flex-shrink-0 flex items-center gap-2">
-        <span className="text-sm text-gray-500 font-medium tabular-nums min-w-[70px] text-right">
-          {formatDuration(currentTime)} / {formatDuration(duration)}
-        </span>
-
-        {/* 停止按钮（播放时显示） */}
-        {isPlaying && (
-          <button
-            onClick={handleStop}
-            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="停止"
-          >
-            <Square className="w-4 h-4" />
-          </button>
-        )}
+      <div className="w-16 h-1 bg-gray-300 rounded-full overflow-hidden">
+        <div className="h-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
       </div>
-    </div>
+
+      <span className="text-xs text-gray-500 tabular-nums min-w-[32px]">
+        {isPlaying ? formatDuration(currentTime) : formatDuration(duration)}
+      </span>
+    </button>
   );
 }

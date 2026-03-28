@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440  # 24 hours
+    encryption_key: Optional[str] = None
 
     # LLM (OpenAI-compatible API)
     openai_api_key: Optional[str] = None
@@ -43,8 +44,21 @@ class Settings(BaseSettings):
     debug: bool = False
     cors_origins: str = "http://localhost:3000,http://localhost:3001"
 
+    # System settings defaults
+    default_llm_model: str = "qwen-turbo"
+    default_asr_model: str = "paraformer-v2"
+    default_tts_model: str = "cosyvoice-v1"
+    rate_limit_rpm: int = 60
+    request_timeout_ms: int = 30000
+    cost_alert_threshold: float = 100
+    log_retention_days: int = 90
+
     # Logging
     log_level: str = "INFO"
+
+    @property
+    def is_insecure_jwt_secret(self) -> bool:
+        return self.jwt_secret == "change-me-in-production"
 
     @property
     def cors_origins_list(self) -> list[str]:

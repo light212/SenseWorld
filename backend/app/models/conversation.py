@@ -1,21 +1,19 @@
 """
 Conversation ORM model.
 """
-
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.message import Message
+    from app.models.user import User
 
 
 class Conversation(Base):
@@ -34,7 +32,7 @@ class Conversation(Base):
         nullable=False,
         index=True,
     )
-    title: Mapped[str | None] = mapped_column(
+    title: Mapped[Optional[str]] = mapped_column(
         String(200),
         nullable=True,
     )
@@ -49,7 +47,7 @@ class Conversation(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    last_message_at: Mapped[datetime | None] = mapped_column(
+    last_message_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         index=True,

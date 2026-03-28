@@ -2,20 +2,23 @@
 Database configuration and session management.
 """
 
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
+import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-import redis.asyncio as redis
 
 from app.config import settings
-
 
 # Create async engine
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
     future=True,
+    pool_pre_ping=True,  # 检测连接是否有效
+    pool_recycle=3600,   # 1小时回收连接
+    pool_size=5,
+    max_overflow=10,
 )
 
 # Create async session factory
@@ -45,7 +48,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 # Redis client
-redis_client: redis.Redis | None = None
+redis_client: Optional[redis.Redis] = None
 
 
 async def get_redis() -> redis.Redis:

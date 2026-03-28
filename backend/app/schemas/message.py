@@ -4,10 +4,8 @@ Message schemas.
 
 from datetime import datetime
 from typing import Literal, Optional
-from uuid import UUID
 
 from pydantic import BaseModel, Field
-
 
 MessageRole = Literal["user", "assistant", "system"]
 

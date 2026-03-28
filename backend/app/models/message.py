@@ -1,13 +1,11 @@
 """
 Message ORM model.
 """
-
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -51,14 +49,14 @@ class Message(Base):
         default=False,
         server_default="false",
     )
-    audio_duration: Mapped[int | None] = mapped_column(
+    audio_duration: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
     )
     extra_data: Mapped[dict] = mapped_column(
         JSON,
+        nullable=False,
         default=dict,
-        server_default="{}",
     )
 
     # Relationships

@@ -4,15 +4,18 @@ SenseWorld Backend Application
 
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.core.database import close_redis
-from app.core.logging import setup_logging, get_logger, get_trace_id
 from app.core.exceptions import AppException, ErrorCode
+from app.core.logging import get_logger, get_trace_id, setup_logging
 from app.core.middleware import RequestTraceMiddleware
+from app.tasks.cleanup import cleanup_old_logs
 
 # 初始化日志系统
 setup_logging()
@@ -23,9 +26,33 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan management."""
     logger.info("Starting SenseWorld Backend...")
-    yield
-    logger.info("Shutting down SenseWorld Backend...")
-    await close_redis()
+
+    # Security startup checks
+    if not settings.debug and settings.is_insecure_jwt_secret:
+        raise RuntimeError(
+            "JWT_SECRET must be set to a secure value in production "
+            "(current value is the default placeholder)"
+        )
+    if settings.encryption_key is None:
+        raise RuntimeError("ENCRYPTION_KEY must be set")
+    if len(settings.encryption_key) < 32:
+        raise RuntimeError("ENCRYPTION_KEY must be at least 32 characters")
+
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        cleanup_old_logs,
+        CronTrigger(hour=3, minute=0),
+        id="cleanup_old_logs",
+        replace_existing=True,
+    )
+    scheduler.start()
+
+    try:
+        yield
+    finally:
+        logger.info("Shutting down SenseWorld Backend...")
+        scheduler.shutdown()
+        await close_redis()
 
 
 app = FastAPI(
@@ -56,6 +83,16 @@ async def app_exception_handler(request: Request, exc: AppException):
         f"Application error: {exc.code.value} - {exc.message}",
         extra={"extra_data": {"code": exc.code.value, "details": exc.details}}
     )
+
+    # 获取请求的 Origin
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin in settings.cors_origins_list:
+        headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+        }
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -66,6 +103,7 @@ async def app_exception_handler(request: Request, exc: AppException):
                 "trace_id": get_trace_id(),
             }
         },
+        headers=headers,
     )
 
 
@@ -79,6 +117,16 @@ async def global_exception_handler(request: Request, exc: Exception):
         exc_info=True,
         extra={"extra_data": {"trace_id": trace_id}}
     )
+
+    # 获取请求的 Origin
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin in settings.cors_origins_list:
+        headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+        }
+
     return JSONResponse(
         status_code=500,
         content={
@@ -88,6 +136,7 @@ async def global_exception_handler(request: Request, exc: Exception):
                 "trace_id": trace_id,
             }
         },
+        headers=headers,
     )
 
 
@@ -109,13 +158,15 @@ async def root():
 
 
 # Include routers
+from app.api.v1.admin import router as admin_router
+from app.api.v1.audio import router as audio_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.chat import router as chat_router
 from app.api.v1.conversation import router as conversation_router
 from app.api.v1.message import router as message_router
 from app.api.v1.speech import router as speech_router
-from app.api.v1.audio import router as audio_router
-from app.api.v1.chat import router as chat_router
 from app.api.websocket import router as websocket_router
+from app.api.omni_websocket import router as omni_router
 
 app.include_router(auth_router, prefix="/v1")
 app.include_router(conversation_router, prefix="/v1")
@@ -123,4 +174,6 @@ app.include_router(message_router, prefix="/v1")
 app.include_router(speech_router, prefix="/v1")
 app.include_router(audio_router, prefix="/v1")
 app.include_router(chat_router, prefix="/v1")
+app.include_router(admin_router, prefix="/v1")
 app.include_router(websocket_router)
+app.include_router(omni_router)

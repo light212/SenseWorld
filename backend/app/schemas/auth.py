@@ -3,7 +3,6 @@ Authentication schemas.
 """
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -42,6 +41,7 @@ class UserResponse(UserBase):
     """User response schema."""
 
     id: UUID
+    role: str = "user"
     preferences: UserPreferences = Field(default_factory=UserPreferences)
     is_active: bool = True
     created_at: datetime
