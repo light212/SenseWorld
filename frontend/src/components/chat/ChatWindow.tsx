@@ -46,6 +46,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [aiTranscript, setAiTranscript] = useState("");
+  const [videoCallStatus, setVideoCallStatus] = useState<'connecting' | 'connected' | 'idle'>('idle');
   const omniClientRef = useRef<OmniClient | null>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
   // Omni PCM 音频串行播放器
@@ -377,11 +378,14 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       omniNextStartTimeRef.current = 0;
       setIsVideoCallActive(false);
       setIsAiSpeaking(false);
+      setVideoCallStatus('idle');
+      setAiTranscript("");
       return;
     }
 
     // 开始视频通话
     if (!token) return;
+    setVideoCallStatus('connecting');
     const wsUrl = `ws://${window.location.hostname}:8000/ws/omni`;
     const client = new OmniClient({
       wsUrl,
@@ -456,6 +460,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       }
       omniClientRef.current = client;
       setIsVideoCallActive(true);
+      setVideoCallStatus('connected');
     } catch (err) {
       client.disconnect();
       const msg = err instanceof Error ? err.message : '';
@@ -464,6 +469,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       } else {
         toast.error('视频通话启动失败，请重试');
       }
+      setVideoCallStatus('idle');
     }
   }, [isVideoCallActive, token, toast]);
 
@@ -507,13 +513,26 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
               <p className="text-sm text-gray-200 text-center max-w-xs line-clamp-2">{aiTranscript}</p>
             )}
           </div>
-          <button
-            onClick={handleVideoCallToggle}
-            className="ml-auto p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors"
-            title="挂断"
-          >
-            <PhoneOff className="w-5 h-5" />
-          </button>
+          <div className="ml-auto flex flex-col items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className={cn(
+                "w-2 h-2 rounded-full",
+                videoCallStatus === 'connecting' && "bg-yellow-400 animate-pulse",
+                videoCallStatus === 'connected' && "bg-green-400",
+              )} />
+              <span className="text-xs text-gray-300">
+                {videoCallStatus === 'connecting' && "连接中..."}
+                {videoCallStatus === 'connected' && (isAiSpeaking ? "AI 正在说话" : "可以讲话")}
+              </span>
+            </div>
+            <button
+              onClick={handleVideoCallToggle}
+              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors"
+              title="挂断"
+            >
+              <PhoneOff className="w-5 h-5" />
+            </button>
+          </div>
       </div>
 
       {/* Messages area */}
