@@ -1,21 +1,18 @@
 """
 ASR (Automatic Speech Recognition) service using Aliyun DashScope.
+Uses OpenAI-compatible API with base64 audio input.
 """
 
+import base64
 import logging
-import os
-import tempfile
 from dataclasses import dataclass
 from typing import Optional
 
-import dashscope
+from openai import OpenAI
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-# 配置 DashScope
-dashscope.base_http_api_url = 'https://dashscope.aliyuncs.com/api/v1'
 
 
 @dataclass
@@ -29,11 +26,15 @@ class TranscriptionResult:
 
 
 class ASRService:
-    """Service for speech-to-text using Aliyun DashScope."""
+    """Service for speech-to-text using Aliyun DashScope (OpenAI-compatible mode)."""
 
     def __init__(self):
         self.api_key = settings.tts_api_key  # 复用 TTS 的 key
         self.model = "qwen3-asr-flash"
+        self._client = OpenAI(
+            api_key=self.api_key,
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        )
 
     async def transcribe(
         self,
@@ -55,73 +56,53 @@ class ASRService:
         import asyncio
 
         try:
-            # 保存到临时文件
-            suffix = os.path.splitext(filename)[1] or ".webm"
-            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
-                f.write(audio_data)
-                temp_path = f.name
+            # 将音频编码为 base64
+            audio_b64 = base64.b64encode(audio_data).decode("utf-8")
 
-            try:
-                # 在线程池中运行同步调用
-                loop = asyncio.get_event_loop()
-                response = await loop.run_in_executor(
-                    None,
-                    lambda: dashscope.MultiModalConversation.call(
-                        api_key=self.api_key,
-                        model=self.model,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [{"audio": f"file://{temp_path}"}]
-                            }
-                        ],
-                        result_format="message",
-                        asr_options={
+            # 在线程池中运行同步调用
+            loop = asyncio.get_event_loop()
+            completion = await loop.run_in_executor(
+                None,
+                lambda: self._client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {
+                                        "data": f"data:audio/wav;base64,{audio_b64}"
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                    extra_body={
+                        "asr_options": {
                             "language": language,
                             "enable_itn": False,
                         }
-                    )
-                )
+                    },
+                ),
+            )
 
-                logger.info(f"ASR response: {response}")
+            text = completion.choices[0].message.content or ""
 
-                if response.status_code == 200:
-                    # 提取转写文本
-                    output = response.output
-                    if hasattr(output, 'choices') and output.choices:
-                        choice = output.choices[0]
-                        if hasattr(choice, 'message') and choice.message:
-                            content = choice.message.content
-                            if isinstance(content, list):
-                                for item in content:
-                                    if isinstance(item, dict) and 'text' in item:
-                                        return TranscriptionResult(
-                                            text=item['text'],
-                                            language=language,
-                                        )
-                            elif isinstance(content, str):
-                                return TranscriptionResult(
-                                    text=content,
-                                    language=language,
-                                )
+            # 提取 usage 中的音频时长
+            duration_ms = None
+            if completion.usage:
+                seconds = getattr(completion.usage, "seconds", None)
+                if seconds is None and hasattr(completion.usage, "model_extra"):
+                    seconds = (completion.usage.model_extra or {}).get("seconds")
+                if seconds is not None:
+                    duration_ms = int(seconds * 1000)
 
-                    # 尝试其他格式
-                    if hasattr(output, 'text'):
-                        return TranscriptionResult(
-                            text=output.text,
-                            language=language,
-                        )
-
-                    logger.error(f"Cannot parse ASR response: {response}")
-                    raise Exception("Cannot parse ASR response")
-                else:
-                    error_msg = getattr(response, 'message', str(response))
-                    logger.error(f"ASR failed: {response.status_code} - {error_msg}")
-                    raise Exception(f"ASR failed: {error_msg}")
-
-            finally:
-                # 清理临时文件
-                os.unlink(temp_path)
+            return TranscriptionResult(
+                text=text,
+                language=language,
+                duration_ms=duration_ms,
+            )
 
         except Exception as e:
             logger.error(f"ASR transcription failed: {e}")
