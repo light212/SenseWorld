@@ -10,7 +10,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { Mic, Send, Video, Plus, X, RotateCcw, MicOff, Check } from "lucide-react";
+import { Mic, Send, Video, Keyboard, X, RotateCcw, MicOff, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 
@@ -36,6 +36,7 @@ export function CompactInputBar({
 }: CompactInputBarProps) {
   const toast = useToast();
   const [text, setText] = useState("");
+  const [inputMode, setInputMode] = useState<'text' | 'voice'>('text');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   
@@ -580,25 +581,36 @@ export function CompactInputBar({
   // 正常输入状态
   return (
     <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-200 bg-white">
-      {/* 更多按钮 */}
+      {/* 文字/语音切换按钮 */}
       <button
+        onClick={() => setInputMode(inputMode === 'text' ? 'voice' : 'text')}
         className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-        title="更多"
-        aria-label="更多操作"
+        title={inputMode === 'text' ? '切换到语音输入' : '切换到文字输入'}
+        aria-label={inputMode === 'text' ? '切换到语音输入' : '切换到文字输入'}
       >
-        <Plus className="w-5 h-5" />
+        {inputMode === 'text' ? <Mic className="w-5 h-5" /> : <Keyboard className="w-5 h-5" />}
       </button>
 
-      {/* 输入框 */}
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        placeholder="输入消息..."
-        className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-300"
-      />
+      {/* 输入区域 */}
+      {inputMode === 'text' ? (
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          placeholder="输入消息..."
+          className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-300"
+        />
+      ) : (
+        <button
+          onClick={startRecording}
+          disabled={disabled}
+          className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-500 text-center hover:bg-gray-200 transition-colors disabled:opacity-50"
+        >
+          按住说话
+        </button>
+      )}
 
       {/* 视频通话按钮 */}
       <input
@@ -623,8 +635,8 @@ export function CompactInputBar({
         <Video className="w-5 h-5" />
       </button>
 
-      {/* 语音/发送按钮 */}
-      {text.trim() ? (
+      {/* 发送按钮（文字模式且有内容时显示） */}
+      {inputMode === 'text' && text.trim() && (
         <button
           onClick={handleSend}
           disabled={disabled}
@@ -633,16 +645,6 @@ export function CompactInputBar({
           aria-label="发送消息"
         >
           <Send className="w-5 h-5" />
-        </button>
-      ) : (
-        <button
-          onClick={startRecording}
-          disabled={disabled}
-          className="p-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
-          title="语音输入"
-          aria-label="开始录音"
-        >
-          <Mic className="w-5 h-5" />
         </button>
       )}
     </div>
