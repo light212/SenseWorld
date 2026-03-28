@@ -107,9 +107,12 @@ interface MessageItemProps {
 const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user";
   const isVoiceMessage = message.metadata?.inputType === "voice";
-  // 加载状态：没有内容且没有音频且不是语音消息
-  // 语音消息可能只有音频没有文字，不应该显示加载状态
-  const isLoading = !isUser && !message.content && !message.hasAudio && !isVoiceMessage;
+  
+  // 加载状态：
+  // - 非 AI 消息不显示加载
+  // - AI 消息：有内容或有音频时不显示加载
+  // - 语音消息生成中：content 为空且 hasAudio 为 false 时显示加载
+  const isLoading = !isUser && !message.content && !message.hasAudio;
 
   return (
     <div className={cn("flex items-end gap-3", isUser && "flex-row-reverse")}>

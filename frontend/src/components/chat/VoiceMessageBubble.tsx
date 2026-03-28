@@ -17,6 +17,15 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   isUser = false,
   audioUrl: propsAudioUrl,
 }: VoiceMessageBubbleProps) {
+  // Debug
+  console.log('[VoiceMessageBubble] props:', {
+    messageId: messageId?.slice(0, 8),
+    isUser,
+    propDuration,
+    hasPropsUrl: !!propsAudioUrl,
+    propsAudioUrl: propsAudioUrl?.slice(0, 30)
+  });
+  
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(propsAudioUrl || null);
