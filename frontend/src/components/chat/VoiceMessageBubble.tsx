@@ -1,6 +1,9 @@
 import { memo, useRef, useState, useEffect } from 'react';
 import { getAudio, createAudioUrl } from '@/lib/audio-cache';
 
+// 全局追踪当前播放的音频，避免重音
+let currentPlayingAudio: HTMLAudioElement | null = null;
+
 interface VoiceMessageBubbleProps {
   messageId: string;
   duration?: number;
@@ -10,14 +13,14 @@ interface VoiceMessageBubbleProps {
 
 export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   messageId,
-  duration = 0,
+  duration: propDuration = 0,
   isUser = false,
   audioUrl: propsAudioUrl,
 }: VoiceMessageBubbleProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [actualDuration, setActualDuration] = useState(duration);
   const [audioUrl, setAudioUrl] = useState<string | null>(propsAudioUrl || null);
+  const [duration, setDuration] = useState(propDuration);
 
   // 声波高度模式
   const staticHeights = [4, 8, 12, 6, 16, 10, 8, 14, 6, 12, 16, 8, 4, 10, 14];
@@ -46,18 +49,22 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     loadFromCache();
   }, [messageId, propsAudioUrl]);
 
+  // 从音频元素获取时长
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !audioUrl) return;
 
     const handleLoadedMetadata = () => {
       if (audio.duration && isFinite(audio.duration)) {
-        setActualDuration(Math.round(audio.duration * 1000));
+        setDuration(Math.round(audio.duration * 1000));
       }
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
+      if (currentPlayingAudio === audio) {
+        currentPlayingAudio = null;
+      }
     };
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -74,12 +81,23 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     if (!audio || !audioUrl) return;
 
     if (isPlaying) {
+      // 当前正在播放，暂停
       audio.pause();
+      audio.currentTime = 0;
       setIsPlaying(false);
+      currentPlayingAudio = null;
     } else {
+      // 停止其他正在播放的音频
+      if (currentPlayingAudio && currentPlayingAudio !== audio) {
+        currentPlayingAudio.pause();
+        currentPlayingAudio.currentTime = 0;
+      }
+      
+      // 播放当前音频
       try {
         await audio.play();
         setIsPlaying(true);
+        currentPlayingAudio = audio;
       } catch (err) {
         console.error('Audio play failed:', err);
       }
@@ -123,7 +141,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
       <span className={`text-sm font-medium tabular-nums ${
         isUser ? 'text-white/90' : 'text-gray-600'
       }`}>
-        {formatTime(actualDuration)}
+        {formatTime(duration)}
       </span>
     </div>
   );
