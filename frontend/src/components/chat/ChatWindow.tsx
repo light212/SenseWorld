@@ -135,7 +135,9 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       addMessage(userMessage);
 
       // 后台异步保存用户语音
-      saveUserAudioBlob(messageId, blob).catch(console.error);
+      saveUserAudioBlob(messageId, blob)
+        .then(() => console.log('[ChatWindow] Saved user audio to IndexedDB:', messageId))
+        .catch((err) => console.error('[ChatWindow] Failed to save user audio:', err));
 
       // 发送流式聊天请求
       sendMessage(confirmedText, "voice", messageId, duration).catch(console.error);
