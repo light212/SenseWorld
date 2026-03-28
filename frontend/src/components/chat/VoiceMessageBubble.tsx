@@ -17,7 +17,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   isUser = false,
   audioUrl: propsAudioUrl,
 }: VoiceMessageBubbleProps) {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(propsAudioUrl || null);
   const [duration, setDuration] = useState(propDuration);
@@ -27,7 +27,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
 
   // 如果没有 propsAudioUrl，尝试从缓存加载
   useEffect(() => {
-    if (propsAudioUrl && propsAudioUrl.length > 0) {
+    if (propsAudioUrl) {
       setAudioUrl(propsAudioUrl);
       return;
     }
@@ -36,9 +36,7 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     
     const loadFromCache = async () => {
       try {
-        console.log('[VoiceMessageBubble] Loading from IndexedDB, key:', messageId?.slice(0, 8), 'isUser:', isUser);
         const cached = await getAudio(messageId);
-        console.log('[VoiceMessageBubble] IndexedDB result:', cached ? `${cached.audioChunks?.length} chunks` : 'null');
         if (cached?.audioChunks?.length) {
           const url = createAudioUrl(cached.audioChunks);
           setAudioUrl(url);
@@ -51,101 +49,52 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     loadFromCache();
   }, [messageId, propsAudioUrl]);
 
-  // 从音频元素获取时长
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
-
-    const handleLoadedMetadata = () => {
-      if (audio.duration && isFinite(audio.duration)) {
-        setDuration(Math.round(audio.duration * 1000));
-      }
-    };
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-      if (currentPlayingAudio === audio) {
-        currentPlayingAudio = null;
-      }
-    };
-
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [audioUrl]);
-
-  // 确保 audio 元素初始化
-  useEffect(() => {
-    if (audioUrl && !audioRef.current) {
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.onended = () => {
-        setIsPlaying(false);
-        currentPlayingAudio = null;
-      };
-    }
-    
-    return () => {
-      // 清理
-      if (audioRef.current && !audioRef.current.src.includes('blob:')) {
-        // 只清理非 blob URL
-        audioRef.current = null;
-      }
-    };
-  }, [audioUrl]);
-
   const handleClick = async () => {
-    if (!audioUrl) {
-      // 无音频时不做任何事
-      return;
-    }
+    if (!audioUrl) return;
     
-    // 确保 audio 存在
-    if (!audioRef.current) {
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.onended = () => {
-        setIsPlaying(false);
-        currentPlayingAudio = null;
-      };
+    // 停止其他正在播放的音频
+    if (currentPlayingAudio && currentPlayingAudio !== audioRef.current) {
+      currentPlayingAudio.pause();
+      currentPlayingAudio.currentTime = 0;
     }
-    
-    const audio = audioRef.current;
 
-    if (isPlaying) {
-      // 当前正在播放，暂停
-      audio.pause();
-      audio.currentTime = 0;
+    if (isPlaying && audioRef.current) {
+      // 暂停
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
       setIsPlaying(false);
       currentPlayingAudio = null;
     } else {
-      // 停止其他正在播放的音频
-      if (currentPlayingAudio && currentPlayingAudio !== audio) {
-        currentPlayingAudio.pause();
-        currentPlayingAudio.currentTime = 0;
+      // 播放
+      if (!audioRef.current) {
+        audioRef.current = new Audio(audioUrl);
+        audioRef.current.onloadedmetadata = () => {
+          if (audioRef.current?.duration && isFinite(audioRef.current.duration)) {
+            setDuration(Math.round(audioRef.current.duration * 1000));
+          }
+        };
+        audioRef.current.onended = () => {
+          setIsPlaying(false);
+          currentPlayingAudio = null;
+        };
       }
       
-      // 播放当前音频
       try {
-        await audio.play();
+        await audioRef.current.play();
         setIsPlaying(true);
-        currentPlayingAudio = audio;
+        currentPlayingAudio = audioRef.current;
       } catch (err) {
-        // 如果是 blob URL 失效，尝试从 IndexedDB 加载
+        // 播放失败，尝试从 IndexedDB 重新加载
         if (audioUrl.startsWith('blob:')) {
           try {
             const cached = await getAudio(messageId);
             if (cached?.audioChunks?.length) {
               const newUrl = createAudioUrl(cached.audioChunks);
               setAudioUrl(newUrl);
-              if (audioRef.current) {
-                audioRef.current.src = newUrl;
-                await audioRef.current.play();
-                setIsPlaying(true);
-                currentPlayingAudio = audioRef.current;
-              }
+              audioRef.current = new Audio(newUrl);
+              await audioRef.current.play();
+              setIsPlaying(true);
+              currentPlayingAudio = audioRef.current;
             }
           } catch (e) {
             // Ignore
@@ -171,8 +120,6 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
           : 'bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
       }`}
     >
-      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
-
       {/* 声波动画 */}
       <div className="flex items-center gap-[2px] h-5">
         {staticHeights.map((h, i) => (

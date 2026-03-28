@@ -56,7 +56,7 @@ class UsageService:
             func.sum(UsageLog.output_tokens),
             func.sum(UsageLog.total_tokens),
             func.avg(UsageLog.latency_ms),
-            func.sum(func.case((UsageLog.success == True, 1), else_=0)),
+            func.sum(func.if_(UsageLog.success == True, 1, 0)),
         ).where(UsageLog.created_at >= start_time)
 
         if model_type:
@@ -99,7 +99,7 @@ class UsageService:
             "total_calls": total_calls,
             "total_input_tokens": int(row[1] or 0),
             "total_output_tokens": int(row[2] or 0),
-            "total_tokens": int(row[3] or 0),
+            "total_tokens": int((row[3] or 0)),
             "avg_latency_ms": round(float(row[4] or 0), 2),
             "success_rate": round(success_calls / total_calls * 100, 2) if total_calls else 100.0,
             "by_model_type": by_model_type,
@@ -147,7 +147,7 @@ class UsageService:
                 "calls": int(row[1] or 0),
                 "input_tokens": int(row[2] or 0),
                 "output_tokens": int(row[3] or 0),
-                "total_tokens": int(row[4] or 0),
+                "total_tokens": int(row[4] or 0) or int((row[2] or 0) + (row[3] or 0)),  # 兼容旧数据
                 "avg_latency_ms": round(float(row[5] or 0), 2),
             }
             for row in result.all()
@@ -180,11 +180,11 @@ class UsageService:
             {
                 "model_type": row[0],
                 "model_name": row[1],
-                "provider": row[2],
+                "provider": row[2] or "unknown",
                 "calls": int(row[3] or 0),
                 "input_tokens": int(row[4] or 0),
                 "output_tokens": int(row[5] or 0),
-                "total_tokens": int(row[6] or 0),
+                "total_tokens": int(row[6] or 0) or int((row[4] or 0) + (row[5] or 0)),  # 兼容旧数据
                 "avg_latency_ms": round(float(row[7] or 0), 2),
                 "percentage": round(int(row[3] or 0) / total_calls * 100, 2),
             }
