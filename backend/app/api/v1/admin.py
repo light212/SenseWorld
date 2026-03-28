@@ -2,11 +2,13 @@
 Admin API routes for model configuration management.
 """
 
+import ipaddress
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +27,23 @@ from app.services.usage_service import UsageService
 from app.schemas.auth import AuthResponse, UserLogin, UserResponse
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_external_url(url: str) -> None:
+    """Reject private/loopback IPs to prevent SSRF."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
+    hostname = parsed.hostname or ""
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            raise ValueError(f"Private/loopback IP not allowed: {hostname}")
+    except ValueError as e:
+        if "not allowed" in str(e) or "Invalid URL" in str(e):
+            raise
+        # hostname is a domain name, not an IP — allow it
+
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -374,10 +393,15 @@ async def test_model_connection(
             base_url = data.config.get("base_url", "https://api.openai.com/v1")
             # 移除尾部斜杠
             base_url = base_url.rstrip("/")
-            
+
+            try:
+                _validate_external_url(base_url)
+            except ValueError as e:
+                return ModelTestResponse(success=False, message=f"URL 不合法: {e}")
+
             full_url = f"{base_url}/chat/completions"
             logger.info(f"Testing OpenAI compatible endpoint: {full_url}")
-            
+
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
                     full_url,
@@ -571,7 +595,7 @@ async def list_request_logs(
     user_id: Optional[str] = None,
     status: Optional[str] = None,
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = Query(50, ge=1, le=200),
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> RequestLogPageResponse:
@@ -830,7 +854,7 @@ async def list_alerts(
     is_read: Optional[bool] = None,
     type: Optional[str] = None,
     page: int = 1,
-    page_size: int = 20,
+    page_size: int = Query(20, ge=1, le=100),
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> AlertPageResponse:

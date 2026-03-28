@@ -8,7 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.security import get_current_user_id
 from app.models.message import Message
+from app.models.usage_log import UsageLog
 from app.services.tts_service import get_tts_service_from_db
 
 router = APIRouter(prefix="/audio", tags=["audio"])
@@ -17,13 +19,13 @@ router = APIRouter(prefix="/audio", tags=["audio"])
 @router.get("/{message_id}")
 async def get_message_audio(
     message_id: str,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """
     Get synthesized audio for a message.
-    
+
     Generates TTS audio on-the-fly for assistant messages.
-    Note: No auth required - audio is generated from message content.
     """
     # Get the message
     result = await db.execute(
@@ -47,6 +49,16 @@ async def get_message_audio(
     # Generate audio (从数据库获取 TTS 配置)
     tts_service = await get_tts_service_from_db(db)
     audio_data = await tts_service.synthesize(text=message.content)
+
+    db.add(UsageLog(
+        model_type="tts",
+        model_name=tts_service.model,
+        user_id=user_id,
+        input_tokens=len(message.content),
+        output_tokens=0,
+        cost=0,
+    ))
+    await db.commit()
 
     return Response(
         content=audio_data,

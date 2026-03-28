@@ -135,7 +135,8 @@ class RequestLogService:
         if request_type:
             query = query.where(RequestLog.request_type == request_type)
 
-        query = query.order_by(RequestLog.latency_ms)
+        # Limit to 10000 rows to avoid OOM on large datasets; sufficient for accurate percentile estimation
+        query = query.order_by(RequestLog.latency_ms).limit(10000)
         result = await self.db.execute(query)
         latencies = [row[0] for row in result.all()]
 
