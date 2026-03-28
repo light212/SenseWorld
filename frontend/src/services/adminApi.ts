@@ -74,45 +74,6 @@ export interface ModelUsageStats {
   percentage: number;
 }
 
-export interface RequestLog {
-  id: string;
-  trace_id: string;
-  conversation_id?: string;
-  user_id?: string;
-  request_type: string;
-  status_code: number;
-  latency_ms: number;
-  created_at: string;
-}
-
-export interface RequestLogDetail extends RequestLog {
-  asr_latency_ms?: number;
-  llm_latency_ms?: number;
-  tts_latency_ms?: number;
-  request_body?: string | Record<string, unknown>;
-  response_body?: string | Record<string, unknown>;
-  error_message?: string;
-  ip_address?: string;
-  user_agent?: string;
-}
-
-export interface RequestLogPage {
-  items: RequestLog[];
-  total: number;
-  page: number;
-  page_size: number;
-  pages: number;
-}
-
-export interface LatencyStats {
-  p50: number;
-  p95: number;
-  p99: number;
-  avg: number;
-  min: number;
-  max: number;
-}
-
 export interface SystemSetting {
   id: string;
   key: string;

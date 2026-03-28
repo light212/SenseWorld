@@ -17,6 +17,13 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
   isUser = false,
   audioUrl: propsAudioUrl,
 }: VoiceMessageBubbleProps) {
+  console.log('[VoiceMessageBubble] props:', { 
+    messageId: messageId?.slice(0,8), 
+    isUser, 
+    hasPropsUrl: !!propsAudioUrl, 
+    propsAudioUrl: propsAudioUrl?.slice(0, 40) 
+  });
+  
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(propsAudioUrl || null);
@@ -36,13 +43,16 @@ export const VoiceMessageBubble = memo(function VoiceMessageBubble({
     
     const loadFromCache = async () => {
       try {
+        console.log('[VoiceMessageBubble] Loading from IndexedDB:', messageId?.slice(0,8));
         const cached = await getAudio(messageId);
+        console.log('[VoiceMessageBubble] IndexedDB result:', cached ? `${cached.audioChunks?.length} chunks` : 'null');
         if (cached?.audioChunks?.length) {
           const url = createAudioUrl(cached.audioChunks);
+          console.log('[VoiceMessageBubble] Created URL from cache:', url?.slice(0, 40));
           setAudioUrl(url);
         }
       } catch (e) {
-        // Ignore
+        console.warn('[VoiceMessageBubble] Cache error:', e);
       }
     };
     

@@ -203,6 +203,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
                 }
 
                 if (data.audio_base64) {
+                  console.log('[useChatStream] Received audio chunk, length:', data.audio_base64.length);
                   audioQueueRef.current.push(data.audio_base64);
                   audioChunksForSaveRef.current.push(data.audio_base64);
 
@@ -235,9 +236,13 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         const hasAudioChunks = audioChunksForSaveRef.current.length > 0;
         let inMemoryAudioUrl: string | undefined;
         if (hasAudioChunks) {
+          console.log('[useChatStream] Creating audio URL from', audioChunksForSaveRef.current.length, 'chunks');
           inMemoryAudioUrl = createAudioUrl(audioChunksForSaveRef.current);
+          console.log('[useChatStream] Audio URL:', inMemoryAudioUrl?.slice(0, 50));
           saveAudio(finalMessageId, audioChunksForSaveRef.current).catch(console.error);
           audioChunksForSaveRef.current = [];
+        } else {
+          console.log('[useChatStream] No audio chunks to save');
         }
 
         // 更新占位消息为完整内容

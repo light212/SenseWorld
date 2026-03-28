@@ -177,43 +177,7 @@ class AlertPageResponse(BaseModel):
     page_size: int
 
 
-class RequestLogResponse(BaseModel):
-    id: str
-    trace_id: str
-    conversation_id: Optional[str] = None
-    user_id: Optional[str] = None
-    request_type: str
-    status_code: int
-    latency_ms: int
-    created_at: str
-
-
-class RequestLogDetailResponse(RequestLogResponse):
-    asr_latency_ms: Optional[int] = None
-    llm_latency_ms: Optional[int] = None
-    tts_latency_ms: Optional[int] = None
-    request_body: Optional[str] = None
-    response_body: Optional[str] = None
-    error_message: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-
-
-class RequestLogPageResponse(BaseModel):
-    items: List[RequestLogResponse]
-    total: int
-    page: int
-    page_size: int
-    pages: int
-
-
-class LatencyStatsResponse(BaseModel):
-    p50: int
-    p95: int
-    p99: int
-    avg: float
-    min: int
-    max: int
+# RequestLog 相关 Schema 已删除（日志不再入库）
 
 
 class SystemSettingResponse(BaseModel):
@@ -586,80 +550,10 @@ async def get_usage_by_model(
     return [ModelUsageStats(**item) for item in data]
 
 
-@router.get("/logs", response_model=RequestLogPageResponse)
-async def list_request_logs(
-    date_range: str = "week",
-    conversation_id: Optional[str] = None,
-    trace_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    status: Optional[str] = None,
-    page: int = 1,
-    page_size: int = Query(50, ge=1, le=200),
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-) -> RequestLogPageResponse:
-    """
-    List request logs with filters.
-    Note: Request logging is currently disabled for MVP. Returns empty list.
-    """
-    # MVP 简化：不查库，返回空列表
-    return RequestLogPageResponse(
-        items=[],
-        total=0,
-        page=page,
-        page_size=page_size,
-        pages=1,
-    )
-
-
-@router.get("/logs/latency-stats", response_model=LatencyStatsResponse)
-async def get_latency_stats(
-    date_range: str = "week",
-    request_type: Optional[str] = None,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-) -> LatencyStatsResponse:
-    """Get latency percentiles for request logs."""
-    service = RequestLogService(db)
-    start_time = _date_range_start(date_range)
-    data = await service.get_latency_stats(start_time, request_type)
-    return LatencyStatsResponse(**data)
-
-
-@router.get("/logs/{log_id}", response_model=RequestLogDetailResponse)
-async def get_request_log(
-    log_id: str,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-) -> RequestLogDetailResponse:
-    """Get request log detail."""
-    service = RequestLogService(db)
-    log = await service.get_log(log_id)
-
-    if not log:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Request log not found",
-        )
-
-    return RequestLogDetailResponse(
-        id=str(log.id),
-        trace_id=log.trace_id,
-        conversation_id=log.conversation_id,
-        user_id=log.user_id,
-        request_type=log.request_type,
-        status_code=log.status_code,
-        latency_ms=log.latency_ms,
-        created_at=log.created_at.isoformat(),
-        asr_latency_ms=log.asr_latency_ms,
-        llm_latency_ms=log.llm_latency_ms,
-        tts_latency_ms=log.tts_latency_ms,
-        request_body=log.request_body,
-        response_body=log.response_body,
-        error_message=log.error_message,
-        ip_address=log.ip_address,
-        user_agent=log.user_agent,
-    )
+# 日志查询 API 已删除（RequestLog 不再写入）
+# - GET /logs
+# - GET /logs/latency-stats
+# - GET /logs/{log_id}
 
 
 @router.get("/settings", response_model=List[SystemSettingResponse])
