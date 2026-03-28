@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, PhoneOff } from "lucide-react";
+import { Bot, PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { MessageList } from "./MessageList";
 import { CompactInputBar } from "./CompactInputBar";
 import { useConversationStore } from "@/stores/conversationStore";
@@ -47,6 +47,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [aiTranscript, setAiTranscript] = useState("");
   const [videoCallStatus, setVideoCallStatus] = useState<'connecting' | 'connected' | 'idle'>('idle');
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
   const omniClientRef = useRef<OmniClient | null>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
   // Omni PCM 音频串行播放器
@@ -380,6 +382,8 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       setIsAiSpeaking(false);
       setVideoCallStatus('idle');
       setAiTranscript("");
+      setIsMuted(false);
+      setIsCameraOff(false);
       return;
     }
 
@@ -444,11 +448,22 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       },
       onError: () => {
         toast.error('视频通话连接失败');
+        omniAudioCtxRef.current?.close();
+        omniAudioCtxRef.current = null;
+        omniNextStartTimeRef.current = 0;
         setIsVideoCallActive(false);
+        setVideoCallStatus('idle');
+        setIsAiSpeaking(false);
+        setAiTranscript("");
       },
       onClose: () => {
+        omniAudioCtxRef.current?.close();
+        omniAudioCtxRef.current = null;
+        omniNextStartTimeRef.current = 0;
         setIsVideoCallActive(false);
+        setVideoCallStatus('idle');
         setIsAiSpeaking(false);
+        setAiTranscript("");
       },
     });
 
@@ -473,6 +488,24 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
     }
   }, [isVideoCallActive, token, toast]);
 
+  const handleToggleMute = useCallback(() => {
+    if (!omniClientRef.current) return;
+    if (isMuted) {
+      omniClientRef.current.startRecording();
+    } else {
+      omniClientRef.current.stopRecording();
+    }
+    setIsMuted(prev => !prev);
+  }, [isMuted]);
+
+  const handleToggleCamera = useCallback(() => {
+    if (videoElementRef.current?.srcObject) {
+      const stream = videoElementRef.current.srcObject as MediaStream;
+      stream.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
+      setIsCameraOff(prev => !prev);
+    }
+  }, []);
+
   // 切换 conversation 时自动挂断
   useEffect(() => {
     if (!isVideoCallActive) return;
@@ -484,55 +517,126 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      {/* 视频通话面板：video 元素始终渲染（挂 ref），面板在激活时显示 */}
-      <div className={isVideoCallActive ? "flex items-center gap-4 p-3 bg-gray-900 border-b border-gray-700" : "hidden"}>
-        <video
-          ref={videoElementRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-40 h-30 rounded-lg object-cover bg-gray-800"
-        />
-          <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0",
-                isAiSpeaking && "animate-pulse"
-              )}>
-                <Bot className="w-8 h-8 text-white" />
-              </div>
-              {isAiSpeaking && (
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      {/* 视频通话面板：video 元素始终渲染（挂 ref），面板在激活时展开 */}
+      <div className={cn(
+        "overflow-hidden transition-all duration-300 ease-in-out",
+        isVideoCallActive ? "max-h-[420px]" : "max-h-0"
+      )}>
+        <div className="bg-gray-950 border-b border-gray-800">
+          {/* 摄像头 + AI 头像行 */}
+          <div className="flex gap-3 p-3">
+            {/* 摄像头画面 */}
+            <div className="relative flex-shrink-0">
+              <video
+                ref={videoElementRef}
+                autoPlay
+                muted
+                playsInline
+                className={cn(
+                  "w-48 h-36 rounded-xl object-cover bg-gray-800 shadow-lg",
+                  isCameraOff && "opacity-0"
+                )}
+              />
+              {isCameraOff && (
+                <div className="absolute inset-0 w-48 h-36 rounded-xl bg-gray-800 flex items-center justify-center">
+                  <VideoOff className="w-8 h-8 text-gray-500" />
                 </div>
               )}
+              {/* 状态 badge */}
+              <div className="absolute top-2 left-2">
+                <div className={cn(
+                  "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium backdrop-blur-sm",
+                  videoCallStatus === 'connecting' && "bg-yellow-500/80 text-white",
+                  videoCallStatus === 'connected' && "bg-black/60 text-gray-200",
+                )}>
+                  <span className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    videoCallStatus === 'connecting' && "bg-yellow-200 animate-pulse",
+                    videoCallStatus === 'connected' && (isAiSpeaking ? "bg-blue-400 animate-pulse" : "bg-green-400"),
+                  )} />
+                  {videoCallStatus === 'connecting' && "连接中..."}
+                  {videoCallStatus === 'connected' && (isAiSpeaking ? "AI 说话中" : "可以讲话")}
+                </div>
+              </div>
             </div>
-            {aiTranscript && (
-              <p className="text-sm text-gray-200 text-center max-w-xs line-clamp-2">{aiTranscript}</p>
-            )}
+
+            {/* AI 头像区域 */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 min-w-0">
+              {/* 头像 + 光晕 */}
+              <div className="relative">
+                {isAiSpeaking && (
+                  <>
+                    <span className="absolute inset-0 rounded-full bg-blue-500/30 animate-ping" />
+                    <span className="absolute inset-[-6px] rounded-full border border-blue-400/40 animate-pulse" />
+                  </>
+                )}
+                <div className={cn(
+                  "w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg relative z-10",
+                  isAiSpeaking && "ring-2 ring-blue-400/60"
+                )}>
+                  <Bot className="w-10 h-10 text-white" />
+                </div>
+              </div>
+              {/* 说话波形 */}
+              {isAiSpeaking ? (
+                <div className="flex items-end gap-1 h-6">
+                  {[0, 150, 75, 225, 50].map((delay, i) => (
+                    <span
+                      key={i}
+                      className="w-1.5 bg-blue-400 rounded-full animate-bounce"
+                      style={{ animationDelay: `${delay}ms`, height: `${[16, 22, 14, 20, 12][i]}px` }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-gray-500">AI 助手</span>
+              )}
+            </div>
           </div>
-          <div className="ml-auto flex flex-col items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className={cn(
-                "w-2 h-2 rounded-full",
-                videoCallStatus === 'connecting' && "bg-yellow-400 animate-pulse",
-                videoCallStatus === 'connected' && "bg-green-400",
-              )} />
-              <span className="text-xs text-gray-300">
-                {videoCallStatus === 'connecting' && "连接中..."}
-                {videoCallStatus === 'connected' && (isAiSpeaking ? "AI 正在说话" : "可以讲话")}
-              </span>
+
+          {/* 转录文字 */}
+          {aiTranscript && (
+            <div className="px-3 pb-2">
+              <div className="bg-gray-900/80 backdrop-blur-sm rounded-lg px-3 py-2">
+                <p className="text-sm text-blue-300 line-clamp-3 leading-relaxed">{aiTranscript}</p>
+              </div>
             </div>
+          )}
+
+          {/* 控制栏 */}
+          <div className="flex items-center justify-center gap-4 px-4 py-3 border-t border-gray-800/60">
+            {/* 静音 */}
+            <button
+              onClick={handleToggleMute}
+              className={cn(
+                "p-3 rounded-full transition-all active:scale-95",
+                isMuted ? "bg-red-600/80 hover:bg-red-600" : "bg-gray-800 hover:bg-gray-700"
+              )}
+              title={isMuted ? "取消静音" : "静音"}
+            >
+              {isMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-gray-200" />}
+            </button>
+            {/* 摄像头 */}
+            <button
+              onClick={handleToggleCamera}
+              className={cn(
+                "p-3 rounded-full transition-all active:scale-95",
+                isCameraOff ? "bg-red-600/80 hover:bg-red-600" : "bg-gray-800 hover:bg-gray-700"
+              )}
+              title={isCameraOff ? "开启摄像头" : "关闭摄像头"}
+            >
+              {isCameraOff ? <VideoOff className="w-5 h-5 text-white" /> : <Video className="w-5 h-5 text-gray-200" />}
+            </button>
+            {/* 挂断 */}
             <button
               onClick={handleVideoCallToggle}
-              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors"
+              className="p-3 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-full transition-all"
               title="挂断"
             >
               <PhoneOff className="w-5 h-5" />
             </button>
           </div>
+        </div>
       </div>
 
       {/* Messages area */}
