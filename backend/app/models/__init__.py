@@ -1,6 +1,5 @@
 """Model package - SQLAlchemy ORM models."""
 
-from app.models.alert import Alert
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.model_config import ModelConfig
@@ -16,7 +15,6 @@ __all__ = [
 	"Message",
 	"ModelConfig",
 	"UsageLog",
-	"Alert",
 	"RequestLog",
 	"SystemSetting",
 	"Terminal",

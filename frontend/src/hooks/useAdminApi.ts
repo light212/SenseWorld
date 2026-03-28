@@ -52,40 +52,5 @@ export function useAdminUsage(dateRange: string) {
   );
 }
 
-export function useAdminLogs(params: {
-  dateRange: string;
-  searchQuery: string;
-  status: string;
-  page: number;
-}) {
-  const { token } = useAuthStore();
-  return useSWR(
-    token ? ["admin-logs", params.dateRange, params.searchQuery, params.status, params.page, token] : null,
-    () => {
-      adminApi.setToken(token!);
-      return adminApi.listRequestLogs({
-        date_range: params.dateRange,
-        conversation_id: params.searchQuery || undefined,
-        status: params.status || undefined,
-        page: params.page,
-        page_size: 20,
-      });
-    },
-    {
-      dedupingInterval: DEDUPE_INTERVAL,
-      revalidateOnFocus: false, // 日志页不需要焦点时刷新
-    }
-  );
-}
-
-export function useAdminLatencyStats(dateRange: string) {
-  const { token } = useAuthStore();
-  return useSWR(
-    token ? ["admin-latency-stats", dateRange, token] : null,
-    () => {
-      adminApi.setToken(token!);
-      return adminApi.getLatencyStats({ date_range: dateRange });
-    },
-    { dedupingInterval: DEDUPE_INTERVAL, revalidateOnFocus: false }
-  );
-}
+// 日志相关 Hooks 已删除（日志功能已禁用）
+// useAdminLogs, useAdminLatencyStats

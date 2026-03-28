@@ -267,42 +267,8 @@ class AdminApiClient {
     return this.request<ModelUsageStats[]>(`/admin/usage/by-model${suffix}`);
   }
 
-  // Logs
-  async listRequestLogs(params: {
-    date_range?: string;
-    conversation_id?: string;
-    trace_id?: string;
-    user_id?: string;
-    status?: string;
-    page?: number;
-    page_size?: number;
-  } = {}): Promise<RequestLogPage> {
-    const query = new URLSearchParams();
-    if (params.date_range) query.set("date_range", params.date_range);
-    if (params.conversation_id) query.set("conversation_id", params.conversation_id);
-    if (params.trace_id) query.set("trace_id", params.trace_id);
-    if (params.user_id) query.set("user_id", params.user_id);
-    if (params.status) query.set("status", params.status);
-    if (params.page) query.set("page", String(params.page));
-    if (params.page_size) query.set("page_size", String(params.page_size));
-    const suffix = query.toString() ? `?${query.toString()}` : "";
-    return this.request<RequestLogPage>(`/admin/logs${suffix}`);
-  }
-
-  async getRequestLog(logId: string): Promise<RequestLogDetail> {
-    return this.request<RequestLogDetail>(`/admin/logs/${logId}`);
-  }
-
-  async getLatencyStats(params: {
-    date_range?: string;
-    request_type?: string;
-  } = {}): Promise<LatencyStats> {
-    const query = new URLSearchParams();
-    if (params.date_range) query.set("date_range", params.date_range);
-    if (params.request_type) query.set("request_type", params.request_type);
-    const suffix = query.toString() ? `?${query.toString()}` : "";
-    return this.request<LatencyStats>(`/admin/logs/latency-stats${suffix}`);
-  }
+  // Logs - 已删除（日志功能已禁用）
+  // listRequestLogs, getRequestLog, getLatencyStats
 
   // Settings
   async listSettings(): Promise<SystemSetting[]> {

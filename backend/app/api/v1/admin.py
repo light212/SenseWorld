@@ -18,7 +18,6 @@ from app.core.database import get_db
 from app.core.security import create_access_token, verify_password
 from app.models.model_config import ModelConfig
 from app.models.user import User
-from app.services.alert_service import AlertService
 from app.services.config_service import ConfigService
 from app.services.system_setting_service import SystemSettingService
 from app.services.terminal_service import TerminalService
@@ -157,25 +156,7 @@ class ModelUsageStats(BaseModel):
     percentage: float
 
 
-class AlertResponse(BaseModel):
-    id: str
-    type: str
-    level: str
-    title: str
-    message: str
-    metadata: dict
-    is_read: bool
-    created_at: str
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class AlertPageResponse(BaseModel):
-    items: List[AlertResponse]
-    total: int
-    page: int
-    page_size: int
-
+# 告警相关 Schema 已删除（告警系统已移除）
 
 # RequestLog 相关 Schema 已删除（日志不再入库）
 
@@ -720,70 +701,11 @@ async def delete_terminal(
     await service.delete_terminal(terminal)
 
 
-@router.get("/alerts", response_model=AlertPageResponse)
-async def list_alerts(
-    is_read: Optional[bool] = None,
-    type: Optional[str] = None,
-    page: int = 1,
-    page_size: int = Query(20, ge=1, le=100),
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-) -> AlertPageResponse:
-    """List alerts."""
-    service = AlertService(db)
-    result = await service.list_alerts(is_read, type, page, page_size)
-    items = [
-        AlertResponse(
-            id=str(alert.id),
-            type=alert.type,
-            level=alert.level,
-            title=alert.title,
-            message=alert.message,
-            metadata=alert.metadata_payload or {},
-            is_read=alert.is_read,
-            created_at=alert.created_at.isoformat(),
-        )
-        for alert in result["items"]
-    ]
-    return AlertPageResponse(
-        items=items,
-        total=result["total"],
-        page=result["page"],
-        page_size=result["page_size"],
-    )
-
-
-@router.get("/alerts/unread-count")
-async def get_unread_alert_count(
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Get unread alert count."""
-    service = AlertService(db)
-    return {"count": await service.get_unread_count()}
-
-
-@router.post("/alerts/{alert_id}/read")
-async def mark_alert_read(
-    alert_id: str,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Mark a single alert as read."""
-    service = AlertService(db)
-    await service.mark_read(alert_id)
-    return {"status": "ok"}
-
-
-@router.post("/alerts/read-all")
-async def mark_all_alerts_read(
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Mark all alerts as read."""
-    service = AlertService(db)
-    await service.mark_all_read()
-    return {"status": "ok"}
+# 告警相关 API 已删除（告警系统已移除）
+# - GET /alerts
+# - GET /alerts/unread-count
+# - POST /alerts/{id}/read
+# - POST /alerts/read-all
 
 
 # Dashboard stats

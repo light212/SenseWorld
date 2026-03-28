@@ -117,7 +117,6 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
 
       // 立即创建并显示用户语音消息
       const audioUrl = URL.createObjectURL(blob);
-      console.log('[handleVoiceRecordingComplete] Created blob URL:', audioUrl);
       memoryMonitor.registerObjectURL(audioUrl);
 
       const userMessage: Message = {
@@ -133,7 +132,6 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           inputType: "voice",
         },
       };
-      console.log('[handleVoiceRecordingComplete] Adding message:', { id: messageId.slice(0,8), audioUrl: audioUrl.slice(0,30) });
       addMessage(userMessage);
 
       // 后台异步保存用户语音

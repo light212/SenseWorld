@@ -214,7 +214,7 @@ async def send_message_stream(
     async def generate_stream():
         full_response = ""
         sentence_buffer = ""
-        message_id = str(uuid.uuid4())
+        message_id = data.message_id or str(uuid.uuid4())  # 使用前端传的 ID
         conversation_id = data.conversation_id
         _usage = [0, 0]  # [input_tokens, output_tokens]
         

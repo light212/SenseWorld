@@ -22,9 +22,9 @@ export const API_NAME_MAP: Record<string, string> = {
   "/v1/admin/usage/summary": "用量统计",
   "/v1/admin/usage/trend": "用量趋势",
   "/v1/admin/usage/by-model": "按模型用量",
-  // Admin - 日志
-  "/v1/admin/logs": "请求日志列表",
-  "/v1/admin/logs/latency-stats": "延迟统计",
+  // Admin - 日志（已禁用）
+  // "/v1/admin/logs": "请求日志列表",
+  // "/v1/admin/logs/latency-stats": "延迟统计",
   // Admin - 设置
   "/v1/admin/settings": "系统设置列表",
   // Admin - 告警
