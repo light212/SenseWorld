@@ -249,9 +249,9 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="flex h-screen flex-col bg-gray-50">
+    <main className="flex h-screen flex-col bg-[#F9FAFB]">
       {/* Header - 亮色主题 */}
-      <header className="flex-shrink-0 border-b border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-sm">
+      <header className="flex-shrink-0 border-b border-gray-100 shadow-sm px-6 py-4 bg-white flex justify-between items-center">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -265,7 +265,7 @@ export default function ChatPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">SenseWorld</h1>
+          <span className="font-bold text-xl bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">SenseWorld</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-gray-600 text-sm">{userName}</span>
@@ -281,7 +281,7 @@ export default function ChatPage() {
       
       <div className="flex flex-1 min-h-0">
         {/* Conversation list sidebar */}
-        <aside className={`w-64 border-r border-gray-200 flex flex-col bg-white absolute md:relative inset-y-0 left-0 z-20 transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <aside className={`w-64 border-r border-gray-200 flex flex-col bg-gray-50 absolute md:relative inset-y-0 left-0 z-20 transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
           <ConversationList
             conversations={conversations}
             selectedId={currentConversationId || undefined}
