@@ -165,7 +165,19 @@ export function CompactInputBar({
       if (chunksRef.current.length === 0) return;
       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
       chunksRef.current = [];
-      onVoiceRecord(blob, duration, "");
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        const actualDuration = isFinite(audio.duration) && audio.duration > 0
+          ? Math.round(audio.duration * 1000)
+          : duration;
+        onVoiceRecord(blob, actualDuration, "");
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        onVoiceRecord(blob, duration, "");
+      };
     };
 
     recorder.stop();

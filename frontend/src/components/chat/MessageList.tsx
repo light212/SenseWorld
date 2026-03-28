@@ -112,17 +112,6 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   // - 非 AI 消息不显示加载
   // - AI 消息：有内容或有音频时不显示加载
   // - 语音消息生成中：content 为空且 hasAudio 为 false 时显示加载
-  // Debug 所有消息
-  console.log('[MessageItem] message:', {
-    id: message.id?.slice(0, 8),
-    isUser,
-    role: message.role,
-    isVoiceMessage,
-    hasAudio: message.hasAudio,
-    inputType: message.metadata?.inputType,
-    contentLen: message.content?.length
-  });
-  
   const isLoading = !isUser && !message.content && !message.hasAudio;
 
   return (

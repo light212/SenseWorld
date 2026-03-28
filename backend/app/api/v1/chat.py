@@ -222,6 +222,7 @@ async def send_message_stream(
         # TTS 并行任务队列（仅语音输入时使用）
         tts_tasks: list = []
         is_voice_input = data.input_type == "voice"
+        tts_audio_bytes: list[bytes] = []  # 收集所有 TTS 音频，用于计算时长
 
         def _on_usage(inp: int, out: int) -> None:
             _usage[0] = inp
@@ -231,6 +232,7 @@ async def send_message_stream(
             """异步合成 TTS 并返回结果"""
             try:
                 audio_data = await tts_service.synthesize(text)
+                tts_audio_bytes.append(audio_data)
                 import base64
                 audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                 return f"event: audio\ndata: {json.dumps({'audio_base64': audio_base64, 'text': text}, ensure_ascii=False)}\n\n"
@@ -279,12 +281,35 @@ async def send_message_stream(
                 return
             try:
                 async with async_session_maker() as save_db:
+                    # 计算 TTS 总时长（毫秒），基于 WAV 头部信息
+                    ai_audio_duration: int | None = None
+                    if tts_audio_bytes:
+                        try:
+                            total_samples = 0
+                            sample_rate = 16000
+                            num_channels = 1
+                            bits_per_sample = 16
+                            for i, audio in enumerate(tts_audio_bytes):
+                                if i == 0 and len(audio) >= 44:
+                                    sample_rate = int.from_bytes(audio[24:28], 'little')
+                                    num_channels = int.from_bytes(audio[22:24], 'little')
+                                    bits_per_sample = int.from_bytes(audio[34:36], 'little')
+                                data_bytes = len(audio) - 44 if len(audio) > 44 else 0
+                                bytes_per_sample = bits_per_sample // 8
+                                if bytes_per_sample > 0 and num_channels > 0:
+                                    total_samples += data_bytes // (bytes_per_sample * num_channels)
+                            if sample_rate > 0:
+                                ai_audio_duration = round(total_samples / sample_rate * 1000)
+                        except Exception:
+                            pass
+
                     ai_message = Message(
                         id=message_id,
                         conversation_id=conversation_id,
                         role="assistant",
                         content=full_response,
                         has_audio=is_voice_input,
+                        audio_duration=ai_audio_duration,
                         extra_data={"input_type": data.input_type},
                     )
                     save_db.add(ai_message)

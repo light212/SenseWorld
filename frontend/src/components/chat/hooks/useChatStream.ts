@@ -235,11 +235,12 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         const hasAudioChunks = audioChunksForSaveRef.current.length > 0;
         let inMemoryAudioUrl: string | undefined;
         
+        let aiAudioDuration: number | undefined;
         if (hasAudioChunks) {
           inMemoryAudioUrl = createAudioUrl(audioChunksForSaveRef.current);
           // 计算音频时长
-          const duration = calculateWavDuration(audioChunksForSaveRef.current);
-          saveAudio(finalMessageId, audioChunksForSaveRef.current, duration).catch(console.error);
+          aiAudioDuration = calculateWavDuration(audioChunksForSaveRef.current);
+          saveAudio(finalMessageId, audioChunksForSaveRef.current, aiAudioDuration).catch(console.error);
           audioChunksForSaveRef.current = [];
         }
 
@@ -248,6 +249,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
           content: fullContent,
           hasAudio: hasAudioChunks,
           audioUrl: inMemoryAudioUrl,
+          audioDuration: aiAudioDuration,
         };
         updateMessage(finalMessageId, finalUpdates);
         onMessageUpdate?.(finalMessageId, finalUpdates);

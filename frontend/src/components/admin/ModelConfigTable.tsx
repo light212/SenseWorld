@@ -49,7 +49,7 @@ export function ModelConfigTable({
               <td className="px-4 py-3 uppercase text-xs text-gray-600">{config.model_type}</td>
               <td className="px-4 py-3 text-xs text-gray-600">{config.terminal_type}</td>
               <td className="px-4 py-3 text-xs text-gray-600">
-                {config.price_per_1k_input_tokens.toFixed(4)} / {config.price_per_1k_output_tokens.toFixed(4)}
+                {config.price_per_1k_input_tokens?.toFixed(4) ?? '-'} / {config.price_per_1k_output_tokens?.toFixed(4) ?? '-'}
               </td>
               <td className="px-4 py-3">
                 <span

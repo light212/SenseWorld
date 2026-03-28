@@ -88,10 +88,15 @@ export function calculateWavDuration(base64Chunks: string[]): number {
         numChannels = bytes[22] | (bytes[23] << 8);
       }
       
-      // 计算总数据大小（每个 chunk 都有 44 字节头部）
-      for (const chunk of base64Chunks) {
-        const chunkBinary = atob(chunk);
-        totalBytes += chunkBinary.length - 44; // 去掉 WAV 头
+      // 第一个 chunk 完整保留（含头部数据部分），后续 chunk 跳过 44 字节头部
+      // 与 createAudioUrl 的合并逻辑一致
+      const firstBinary = atob(base64Chunks[0]);
+      totalBytes += firstBinary.length - 44;
+      for (let i = 1; i < base64Chunks.length; i++) {
+        const chunkBinary = atob(base64Chunks[i]);
+        if (chunkBinary.length > 44) {
+          totalBytes += chunkBinary.length - 44;
+        }
       }
     } catch (e) {
       // 解析失败，返回 0
