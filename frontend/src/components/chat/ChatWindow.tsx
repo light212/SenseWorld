@@ -51,6 +51,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
   const [isCameraOff, setIsCameraOff] = useState(false);
   const omniClientRef = useRef<OmniClient | null>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
+  const handleVideoCallToggleRef = useRef<(() => void) | null>(null);
   // Omni PCM 音频串行播放器
   const omniAudioCtxRef = useRef<AudioContext | null>(null);
   const omniNextStartTimeRef = useRef<number>(0);
@@ -430,7 +431,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
           // 检测 AI 回复中的告别语，自动挂断
           const farewellPattern = /再见|拜拜|goodbye|bye|结束通话|挂断了|下次见|保重/i;
           if (farewellPattern.test(newTranscript)) {
-            setTimeout(() => handleVideoCallToggle(), 1500);
+            setTimeout(() => handleVideoCallToggleRef.current?.(), 1500);
           }
           return newTranscript;
         });
@@ -495,6 +496,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       setVideoCallStatus('idle');
     }
   }, [isVideoCallActive, token, toast]);
+  handleVideoCallToggleRef.current = handleVideoCallToggle;
 
   const handleToggleMute = useCallback(() => {
     if (!omniClientRef.current) return;
