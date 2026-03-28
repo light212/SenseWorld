@@ -77,7 +77,9 @@ export class OmniClient {
 
       this.ws.onclose = () => {
         console.log('[OmniClient] Disconnected');
-        if (!this.intentionalDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+        const wasIntentional = this.intentionalDisconnect;
+        this.intentionalDisconnect = false; // 重置，为下次连接做准备
+        if (!wasIntentional && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 10000);
           console.log(`[OmniClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
@@ -322,7 +324,7 @@ export class OmniClient {
    * Disconnect from server
    */
   disconnect(): void {
-    this.intentionalDisconnect = true;
+    this.intentionalDisconnect = true; // 保持 true 直到 onclose 触发
     if (this.reconnectTimeoutId) {
       clearTimeout(this.reconnectTimeoutId);
       this.reconnectTimeoutId = null;
@@ -335,7 +337,7 @@ export class OmniClient {
       this.ws = null;
     }
     this.reconnectAttempts = 0;
-    this.intentionalDisconnect = false;
+    // 注意：intentionalDisconnect 在 onclose 里重置，不在这里重置
   }
 
   /**
