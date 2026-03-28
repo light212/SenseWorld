@@ -150,11 +150,12 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       
       setIsSendingMessage(true);
 
-      const messageId = crypto.randomUUID();
+      const userMessageId = crypto.randomUUID();
+      const aiMessageId = crypto.randomUUID();
       
       // Add user message to UI immediately
       const userMessage: Message = {
-        id: messageId,
+        id: userMessageId,
         conversationId: activeConversationId,
         role: "user",
         content: text,
@@ -165,7 +166,7 @@ export function ChatWindow({ conversationId, className }: ChatWindowProps) {
       addMessage(userMessage);
 
       // 流式调用 chat API（文本输入）
-      await sendMessage(text, "text", messageId);
+      await sendMessage(text, "text", userMessageId, aiMessageId);
     },
     [activeConversationId, addMessage, setIsSendingMessage, sendMessage]
   );
