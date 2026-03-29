@@ -11,7 +11,7 @@ Usage statistics service - 计量统计（不含计费）
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.usage_log import UsageLog
@@ -56,7 +56,7 @@ class UsageService:
             func.sum(UsageLog.output_tokens),
             func.sum(UsageLog.total_tokens),
             func.avg(UsageLog.latency_ms),
-            func.sum(func.if_(UsageLog.success == True, 1, 0)),
+            func.sum(case((UsageLog.success == True, 1), else_=0)),
         ).where(UsageLog.created_at >= start_time)
 
         if model_type:
@@ -296,19 +296,21 @@ class UsageService:
         start_time = self._get_range_start(date_range)
         
         query = select(
+            func.count(UsageLog.id),
             func.sum(UsageLog.request_size_bytes),
             func.sum(UsageLog.response_size_bytes),
         ).where(UsageLog.created_at >= start_time)
-        
+
         result = await self.db.execute(query)
         row = result.one()
-        
-        request_bytes = int(row[0] or 0)
-        response_bytes = int(row[1] or 0)
-        
+
+        total_calls = int(row[0] or 0)
+        request_bytes = int(row[1] or 0)
+        response_bytes = int(row[2] or 0)
+
         return {
             "total_request_bytes": request_bytes,
             "total_response_bytes": response_bytes,
             "total_bytes": request_bytes + response_bytes,
-            "avg_request_bytes": round(request_bytes / max(1, query.column_descriptions[0]["name"]), 2),
+            "avg_request_bytes": round(request_bytes / max(1, total_calls), 2),
         }

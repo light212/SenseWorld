@@ -4,6 +4,7 @@ Security utilities: JWT, password hashing, authentication.
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -43,13 +44,29 @@ def create_access_token(
         expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.access_token_expire_minutes
         )
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "jti": str(uuid4())})
     encoded_jwt = jwt.encode(
         to_encode,
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )
     return encoded_jwt
+
+
+async def add_token_to_blacklist(jti: str, expires_at: datetime) -> None:
+    """Add a token JTI to the Redis blacklist until it expires."""
+    from app.core.database import get_redis
+    remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
+    if remaining > 0:
+        r = await get_redis()
+        await r.setex(f"token_blacklist:{jti}", remaining, "1")
+
+
+async def is_token_blacklisted(jti: str) -> bool:
+    """Check if a token JTI is in the Redis blacklist."""
+    from app.core.database import get_redis
+    r = await get_redis()
+    return await r.exists(f"token_blacklist:{jti}") == 1
 
 
 def decode_access_token(token: str) -> Optional[dict]:
@@ -78,6 +95,14 @@ async def get_current_user_id(
 
     payload = decode_access_token(credentials.credentials)
     if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录已过期，请重新登录",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    jti = payload.get("jti")
+    if jti and await is_token_blacklisted(jti):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="登录已过期，请重新登录",

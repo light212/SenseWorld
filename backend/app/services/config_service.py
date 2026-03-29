@@ -235,7 +235,7 @@ class ConfigService:
         # 解密 API key
         api_key = None
         if config.api_key_encrypted:
-            api_key = self.encryption.decrypt(config.api_key_encrypted)
+            api_key = decrypt_text(config.api_key_encrypted)
         elif config.config and config.config.get("api_key"):
             api_key = config.config.get("api_key")
         

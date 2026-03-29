@@ -37,7 +37,6 @@ class VisionService:
     def __init__(self, api_key: str = None, model: str = "qwen-omni-turbo"):
         self.api_key = api_key or settings.tts_api_key  # 复用 DashScope API key
         self.model = model
-        dashscope.api_key = self.api_key
 
     async def understand_image(
         self,
@@ -79,13 +78,16 @@ class VisionService:
                 ]
 
                 # 在线程池中运行同步调用
-                loop = asyncio.get_event_loop()
+                api_key = self.api_key
+                model = self.model
+                loop = asyncio.get_running_loop()
                 response = await loop.run_in_executor(
                     None,
                     lambda: MultiModalConversation.call(
-                        model=self.model,
+                        model=model,
                         messages=messages,
                         result_format="message",
+                        api_key=api_key,
                     )
                 )
 

@@ -57,11 +57,23 @@ async def send_message(
     """
     # Get or create conversation
     result = await db.execute(
-        select(Conversation).where(Conversation.id == data.conversation_id)
+        select(Conversation).where(
+            Conversation.id == data.conversation_id,
+            Conversation.user_id == user_id,
+        )
     )
     conversation = result.scalar_one_or_none()
 
     if not conversation:
+        # Check if the ID is taken by another user
+        existing = await db.execute(
+            select(Conversation.id).where(Conversation.id == data.conversation_id)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权访问此对话",
+            )
         conversation = Conversation(
             id=data.conversation_id,
             user_id=user_id,
@@ -69,11 +81,6 @@ async def send_message(
         )
         db.add(conversation)
         await db.flush()
-    elif conversation.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权访问此对话",
-        )
 
     # Save user message
     user_message = Message(
@@ -161,11 +168,23 @@ async def send_message_stream(
     """
     # Get or create conversation
     result = await db.execute(
-        select(Conversation).where(Conversation.id == data.conversation_id)
+        select(Conversation).where(
+            Conversation.id == data.conversation_id,
+            Conversation.user_id == user_id,
+        )
     )
     conversation = result.scalar_one_or_none()
 
     if not conversation:
+        # Check if the ID is taken by another user
+        existing = await db.execute(
+            select(Conversation.id).where(Conversation.id == data.conversation_id)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权访问此对话",
+            )
         conversation = Conversation(
             id=data.conversation_id,
             user_id=user_id,
@@ -173,11 +192,6 @@ async def send_message_stream(
         )
         db.add(conversation)
         await db.flush()
-    elif conversation.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权访问此对话",
-        )
 
     # Save user message (流式接口需要显式提交，因为 StreamingResponse 返回后 session 会关闭)
     user_message = Message(
@@ -354,8 +368,8 @@ async def send_message_stream(
             yield f"event: done\ndata: {json.dumps({'message_id': message_id}, ensure_ascii=False)}\n\n"
 
         except Exception as e:
-            logger.error(f"Stream generation failed: {e}")
-            yield f"event: error\ndata: {json.dumps({'message': str(e)}, ensure_ascii=False)}\n\n"
+            logger.error(f"Stream generation failed: {e}", exc_info=True)
+            yield f"event: error\ndata: {json.dumps({'message': '服务暂时不可用，请稍后重试'}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         generate_stream(),

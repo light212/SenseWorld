@@ -10,8 +10,8 @@ interface RealtimeConversationProps {
 }
 
 export function RealtimeConversation({ 
-  token, 
-  wsUrl = `ws://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8000/ws/omni`
+  token,
+  wsUrl = `${typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss' : 'ws'}://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8000/ws/omni`
 }: RealtimeConversationProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -39,7 +39,9 @@ export function RealtimeConversation({
     }
     
     isPlayingRef.current = false;
-    playNextAudio(); // Play next in queue
+    if (audioQueueRef.current.length > 0) {
+      setTimeout(playNextAudio, 0);
+    }
   }, []);
 
   // Handle incoming events

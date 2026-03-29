@@ -2,13 +2,17 @@
 Authentication API routes.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import (
+    add_token_to_blacklist,
     create_access_token,
+    decode_access_token,
     get_current_user_id,
     get_password_hash,
     verify_password,
@@ -85,13 +89,20 @@ async def login(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
+    request: Request,
     user_id: str = Depends(get_current_user_id),
 ) -> None:
-    """Logout user (invalidate token - client should discard it)."""
-    # In a production system, you might want to:
-    # - Add token to a blacklist
-    # - Clear any server-side session data
-    pass
+    """Logout user - invalidate token via Redis blacklist."""
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.removeprefix("Bearer ").strip()
+    if token:
+        payload = decode_access_token(token)
+        if payload:
+            jti = payload.get("jti")
+            exp = payload.get("exp")
+            if jti and exp:
+                expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
+                await add_token_to_blacklist(jti, expires_at)
 
 
 @router.get("/me", response_model=UserResponse)
